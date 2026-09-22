@@ -29,6 +29,7 @@ if (!stripe && !demoPayments) {
 
 const app = createApp({
   db, stripe, demoPayments, baseUrl,
+  uploadDir: env.UPLOAD_DIR || 'data/uploads',
   stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET,
   secureCookies: baseUrl.startsWith('https://'),
 });

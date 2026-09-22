@@ -42,7 +42,8 @@ export function quote(subtotalCents) {
 export function priceCart(db, items) {
   if (!Array.isArray(items) || items.length === 0) throw new HttpError(400, 'Cart is empty');
   if (items.length > 50) throw new HttpError(400, 'Too many cart lines');
-  const q = db.prepare(`SELECT v.id, v.color, v.size, v.sku, v.stock, p.id AS product_id, p.name, p.slug, p.design, p.price_cents, p.active
+  const q = db.prepare(`SELECT v.id, v.color, v.size, v.sku, v.stock, p.id AS product_id, p.name, p.slug, p.design, p.price_cents, p.active,
+                               (SELECT '/uploads/' || file FROM product_images WHERE product_id = p.id AND color = v.color) AS image
                         FROM variants v JOIN products p ON p.id = v.product_id WHERE v.id = ?`);
   const merged = new Map();
   for (const it of items) {
@@ -118,7 +119,8 @@ export function getOrder(db, id) {
   const o = db.prepare('SELECT * FROM orders WHERE id = ?').get(id);
   if (!o) return null;
   o.shipping_address = JSON.parse(o.shipping_address);
-  o.items = db.prepare('SELECT * FROM order_items WHERE order_id = ? ORDER BY id').all(id).map((i) => ({ ...i, design: JSON.parse(i.design) }));
+  o.items = db.prepare(`SELECT oi.*, '/uploads/' || pi.file AS image FROM order_items oi
+    LEFT JOIN product_images pi ON pi.product_id = oi.product_id AND pi.color = oi.color WHERE oi.order_id = ? ORDER BY oi.id`).all(id).map((i) => ({ ...i, design: JSON.parse(i.design) }));
   o.events = db.prepare('SELECT status, note, created_at FROM order_events WHERE order_id = ? ORDER BY id').all(id);
   o.payments = db.prepare('SELECT id, provider, provider_ref, amount_cents, status, detail, created_at FROM payments WHERE order_id = ? ORDER BY id').all(id);
   return o;
@@ -204,7 +206,7 @@ export async function transition(db, orderId, to, { note, trackingNumber, refund
 
 function defaultNote(status, tracking) {
   return {
-    processing: 'Printing and packing',
+    processing: 'Picking and packing your order',
     shipped: tracking ? `Shipped · tracking ${tracking}` : 'Shipped',
     delivered: 'Delivered',
     cancelled: 'Order cancelled, stock released',

@@ -1,11 +1,14 @@
-import { html, shirt, allProducts, colorHex, colorLabel, toast } from '../lib.js';
+import { html, productArt, allProducts, colorHex, colorLabel, toast } from '../lib.js';
 import { shirtSVG, svgDataUrl } from '../shirt.js';
 
-// Garment geometry in the shirt SVG's 400x440 coordinate space.
-const SVG_W = 400, SVG_H = 440;
-const SHOULDER_L = { x: 78, y: 58 }, SHOULDER_R = { x: 322, y: 58 };
-const SHOULDER_SPAN = SHOULDER_R.x - SHOULDER_L.x;
-const PRINT = { w: 150, h: 170, cx: 200, cy: 203 };
+// Overlay geometry, in the overlay image's own units:
+//   w, h  image size · span  distance between shoulder seams · off  shoulder line → image centre.
+// The drawn tee's shoulders sit at (78,58) and (322,58) in its 400x440 viewBox; the chest print
+// is a 150x170 box centred 145 units below that line.
+const DRAWN = { w: 400, h: 440, span: 244, off: 162 };
+const PRINT = { w: 150, h: 170, span: 244, off: 145 };
+// Product photos: assumes a front flat-lay, shoulders ~20%/80% across and 12% down.
+const photoGeom = (img) => ({ w: img.naturalWidth, h: img.naturalHeight, span: img.naturalWidth * 0.6, off: img.naturalHeight * 0.38 });
 const MAX_SIDE = 1400;
 
 export async function render(el, { query }) {
@@ -59,7 +62,7 @@ export async function render(el, { query }) {
       <aside class="panel stack">
         <div>
           <h3>Design</h3>
-          <div class="mini-shirts" id="picker">${products.map((p) => html`<button data-slug="${p.slug}" title="${p.name}" aria-label="${p.name}">${shirt(p.colors[0], p.design)}</button>`)}</div>
+          <div class="mini-shirts" id="picker">${products.map((p) => html`<button data-slug="${p.slug}" title="${p.name}" aria-label="${p.name}">${productArt(p)}</button>`)}</div>
         </div>
         <div>
           <div class="spread"><b id="p-name"></b><a id="p-link" style="font-size:13px">View product →</a></div>
@@ -94,22 +97,41 @@ export async function render(el, { query }) {
   let overlaySeq = 0;
 
   // ---------- overlay image ----------
+  let geom = DRAWN;
+
   async function loadOverlay() {
     const seq = ++overlaySeq;
-    const svg = shirtSVG({ color: st.color, design: st.product.design, printOnly: st.mode === 'print' });
+    const photo = st.product.images?.[st.color];
+    // "Print on my shirt" needs the bare graphic, which only exists for drawn designs.
+    if (photo && st.mode === 'print') setMode('shirt');
+    el.querySelector('[data-mode=print]').hidden = !!photo;
     const img = new Image();
-    img.src = svgDataUrl(svg, 1000);
-    await img.decode().catch(() => new Promise((r) => (img.onload = r)));
+    img.src = photo || svgDataUrl(shirtSVG({ color: st.color, design: st.product.design, printOnly: st.mode === 'print' }), 1000);
+    try { await img.decode(); } catch { if (seq === overlaySeq) toast('Could not load this product image', true); return; }
     if (seq !== overlaySeq) return;
+    const next = photo ? photoGeom(img) : st.mode === 'print' ? PRINT : DRAWN;
+    reanchor(geom, next);
+    geom = next;
     overlay = img;
+    syncSliders();
     draw();
   }
 
-  const aspect = () => (st.mode === 'print' ? PRINT.h / PRINT.w : SVG_H / SVG_W);
+  const aspect = () => geom.h / geom.w;
+
+  /** Swap overlay geometry while keeping the shoulders where the user placed them. */
+  function reanchor(from, to) {
+    if (!st.t || from === to) return;
+    const { cx, cy, rot } = st.t;
+    const k = st.t.w / from.w;                 // canvas px per `from` unit
+    const midX = cx + Math.sin(rot) * from.off * k, midY = cy - Math.cos(rot) * from.off * k;
+    const k2 = (from.span * k) / to.span;      // same shoulder width, in `to` units
+    st.t = { rot, w: to.w * k2, cx: midX - Math.sin(rot) * to.off * k2, cy: midY + Math.cos(rot) * to.off * k2 };
+  }
 
   function defaultTransform() {
-    const w = cv.width * (st.mode === 'print' ? 0.28 : 0.62);
-    return { cx: cv.width / 2, cy: cv.height * (st.mode === 'print' ? 0.62 : 0.66), w, rot: 0 };
+    const w = cv.width * (geom === PRINT ? 0.28 : 0.62);
+    return { cx: cv.width / 2, cy: cv.height * (geom === PRINT ? 0.62 : 0.66), w, rot: 0 };
   }
 
   /** Align the garment's shoulder seams (or the chest print) to two picked shoulder points. */
@@ -117,12 +139,10 @@ export async function render(el, { query }) {
     const [l, r] = a.x <= b.x ? [a, b] : [b, a];
     const span = Math.hypot(r.x - l.x, r.y - l.y);
     const rot = Math.atan2(r.y - l.y, r.x - l.x);
-    const unit = span / SHOULDER_SPAN; // canvas px per SVG unit
+    const unit = span / geom.span; // canvas px per overlay unit
     const mid = { x: (l.x + r.x) / 2, y: (l.y + r.y) / 2 };
-    // Offset from shoulder midpoint to the overlay's centre, in SVG units.
-    const off = st.mode === 'print' ? PRINT.cy - SHOULDER_L.y : SVG_H / 2 - SHOULDER_L.y;
-    const dx = -Math.sin(rot) * off * unit, dy = Math.cos(rot) * off * unit;
-    st.t = { cx: mid.x + dx, cy: mid.y + dy, w: (st.mode === 'print' ? PRINT.w : SVG_W) * unit, rot };
+    const dx = -Math.sin(rot) * geom.off * unit, dy = Math.cos(rot) * geom.off * unit;
+    st.t = { cx: mid.x + dx, cy: mid.y + dy, w: geom.w * unit, rot };
     syncSliders();
     draw();
   }
@@ -373,18 +393,13 @@ export async function render(el, { query }) {
     const b = e.target.closest('[data-color]');
     if (b) { st.color = b.dataset.color; syncProduct(); }
   });
+  function setMode(mode) {
+    st.mode = mode;
+    el.querySelectorAll('[data-mode]').forEach((x) => x.classList.toggle('on', x.dataset.mode === mode));
+  }
   el.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => {
     if (st.mode === b.dataset.mode) return;
-    const prev = st.mode;
-    st.mode = b.dataset.mode;
-    el.querySelectorAll('[data-mode]').forEach((x) => x.classList.toggle('on', x === b));
-    // Keep the garment anchored: convert between full-tee and chest-print geometry.
-    if (st.t) {
-      const unit = st.t.w / (prev === 'print' ? PRINT.w : SVG_W);
-      const shift = (PRINT.cy - SVG_H / 2) * unit * (st.mode === 'print' ? 1 : -1);
-      st.t = { ...st.t, w: (st.mode === 'print' ? PRINT.w : SVG_W) * unit, cx: st.t.cx - Math.sin(st.t.rot) * shift, cy: st.t.cy + Math.cos(st.t.rot) * shift };
-    }
-    syncSliders();
+    setMode(b.dataset.mode);
     loadOverlay();
   }));
 

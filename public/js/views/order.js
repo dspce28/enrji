@@ -1,4 +1,4 @@
-import { api, html, shirt, money, colorLabel, statusLabel, date, formData, toast, session } from '../lib.js';
+import { api, html, art, money, colorLabel, statusLabel, date, formData, toast, session } from '../lib.js';
 
 const GUEST_KEY = 'enrji.orders.v1';
 
@@ -77,7 +77,7 @@ export async function render(el, { params, query }) {
             <h3>Items</h3>
             ${o.items.map((i) => html`
               <div class="cart-line">
-                <div class="thumb">${shirt(i.color, i.design)}</div>
+                <div class="thumb">${art(i.color, i.design, i.image)}</div>
                 <div><div class="name">${i.product_name} × ${i.quantity}</div><div class="meta">${colorLabel(i.color)} · ${i.size} · <span class="mono">${i.sku}</span></div></div>
                 <div class="mono">${money(i.unit_price_cents * i.quantity)}</div>
               </div>`)}

@@ -1,4 +1,4 @@
-import { api, html, shirt, money, colorLabel, cart, session, formData, toast } from '../lib.js';
+import { api, html, art, money, colorLabel, cart, session, formData, toast } from '../lib.js';
 import { rememberOrder } from './order.js';
 
 export async function render(el, { navigate }) {
@@ -44,7 +44,7 @@ export async function render(el, { navigate }) {
         <h3>Order summary</h3>
         ${q.lines.map((l) => html`
           <div class="cart-line">
-            <div class="thumb">${shirt(l.color, l.design)}</div>
+            <div class="thumb">${art(l.color, l.design, l.image)}</div>
             <div><div class="name">${l.name} × ${l.quantity}</div><div class="meta">${colorLabel(l.color)} · ${l.size}</div>
               ${q.problems.find((p) => p.variantId === l.id) ? html`<div class="warn">${q.problems.find((p) => p.variantId === l.id).error}</div>` : ''}</div>
             <div class="mono">${money(l.line_total_cents)}</div>

@@ -1,5 +1,5 @@
-import { api, html, raw, money, colorHex, colorLabel, cart, emit, toast } from '../lib.js';
-import { shirtSVG, SIZES } from '../shirt.js';
+import { api, html, raw, productArt, money, colorHex, colorLabel, cart, emit, toast } from '../lib.js';
+import { SIZES } from '../shirt.js';
 
 export async function render(el, { params, query }) {
   const { product: p } = await api(`/products/${encodeURIComponent(params.slug)}`);
@@ -44,7 +44,7 @@ export async function render(el, { params, query }) {
         <div class="specs">
           <div><b>240gsm</b>Organic cotton</div>
           <div><b>Relaxed</b>Boxy future fit</div>
-          <div><b>3–5 days</b>Print & ship</div>
+          <div><b>1–2 days</b>Ships from stock</div>
         </div>
       </div>
     </div>`;
@@ -53,7 +53,7 @@ export async function render(el, { params, query }) {
   const art = el.querySelector('#art');
 
   function update() {
-    tilt.innerHTML = shirtSVG({ color: state.color, design: p.design });
+    tilt.innerHTML = productArt(p, state.color);
     el.querySelector('#color-name').textContent = colorLabel(state.color);
     el.querySelectorAll('.color-opt').forEach((b) => b.classList.toggle('on', b.dataset.color === state.color));
     el.querySelector('#sizes').innerHTML = SIZES.map((s) => {
@@ -66,7 +66,7 @@ export async function render(el, { params, query }) {
     const variant = state.size && byKey.get(`${state.color}|${state.size}`);
     if (!variant) { note.textContent = 'Select a size'; note.className = 'stock-note muted'; }
     else if (variant.stock <= 5) { note.textContent = `Only ${variant.stock} left in ${state.size}`; note.className = 'stock-note low'; }
-    else { note.textContent = '✓ In stock, ships in 3–5 days'; note.className = 'stock-note'; }
+    else { note.textContent = '✓ In stock, ships in 1–2 days'; note.className = 'stock-note'; }
     state.qty = Math.min(state.qty, variant?.stock || 10);
     el.querySelector('#qty').textContent = state.qty;
     el.querySelector('#add').disabled = !variant;

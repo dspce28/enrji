@@ -1,5 +1,5 @@
 import * as THREE from '/vendor/three.module.js';
-import { api, html, shirt, money, colorHex, colorLabel, allProducts, cart, emit, toast } from '../lib.js';
+import { api, html, productArt, money, colorHex, colorLabel, allProducts, cart, emit, toast } from '../lib.js';
 import { shirtImage, SIZES } from '../shirt.js';
 
 const ROOM = 15;           // half-size of the square showroom
@@ -154,7 +154,7 @@ export async function render(el, { navigate }) {
     edges.position.copy(frame.position);
     g.add(edges);
 
-    const tex = track(await imageTexture({ color: p.colors[0], design: p.design }));
+    const tex = track(await imageTexture({ color: p.colors[0], design: p.design, image: p.images?.[p.colors[0]] }));
     const shirtMat = track(new THREE.MeshStandardMaterial({ map: tex, transparent: true, emissive: '#ffffff', emissiveMap: tex, emissiveIntensity: 0.45, roughness: 0.9 }));
     const shirtMesh = new THREE.Mesh(shirtGeo, shirtMat);
     shirtMesh.position.set(0, 2.45, 0.1);
@@ -197,7 +197,7 @@ export async function render(el, { navigate }) {
   pedestal.add(beam);
   let holo = null;
   if (featured) {
-    const tex = track(await imageTexture({ color: featured.colors[0], design: featured.design }));
+    const tex = track(await imageTexture({ color: featured.colors[0], design: featured.design, image: featured.images?.[featured.colors[0]] }));
     holo = new THREE.Mesh(track(new THREE.PlaneGeometry(2.4, 2.64)), track(new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, toneMapped: false })));
     holo.position.y = 2.8;
     holo.userData = { product: featured, baseY: 2.8, phase: 0 };
@@ -302,7 +302,7 @@ export async function render(el, { navigate }) {
     const draw = () => {
       info.innerHTML = html`
         <div class="spread"><div class="eyebrow">${full.category.replace('-', ' ')}</div><button class="icon-btn" id="x" aria-label="Close">✕</button></div>
-        <div class="art">${shirt(st.color, full.design)}</div>
+        <div class="art">${productArt(full, st.color)}</div>
         <h3 style="margin:0">${full.name}</h3>
         <div class="mono" style="color:var(--cyan)">${money(full.price_cents)}</div>
         <p class="muted" style="font-size:13px;margin:8px 0">${full.description}</p>
@@ -429,10 +429,20 @@ function displaySlots(n) {
 }
 
 async function imageTexture(opts) {
-  const img = await shirtImage(opts, 512);
   const c = document.createElement('canvas');
   c.width = 512; c.height = 564;
-  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  const g = c.getContext('2d');
+  if (opts.image) {
+    // Product photo: letterbox it onto the display panel without stretching.
+    const img = new Image();
+    img.src = opts.image;
+    await img.decode();
+    const k = Math.min(c.width / img.naturalWidth, c.height / img.naturalHeight);
+    const w = img.naturalWidth * k, h = img.naturalHeight * k;
+    g.drawImage(img, (c.width - w) / 2, (c.height - h) / 2, w, h);
+  } else {
+    g.drawImage(await shirtImage(opts, 512), 0, 0, c.width, c.height);
+  }
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;

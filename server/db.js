@@ -98,6 +98,13 @@ CREATE TABLE IF NOT EXISTS payments (
   detail TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+CREATE TABLE IF NOT EXISTS product_images (
+  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  color TEXT NOT NULL,
+  file TEXT NOT NULL,                -- basename inside the uploads directory
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (product_id, color)
+);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_mov_variant ON inventory_movements(variant_id);
@@ -124,6 +131,12 @@ export function tx(db, fn) {
   }
 }
 
+/** { color: '/uploads/<file>' } for a product's photos. */
+export function imagesFor(db, productId) {
+  return Object.fromEntries(db.prepare('SELECT color, file FROM product_images WHERE product_id = ?').all(productId)
+    .map((r) => [r.color, `/uploads/${r.file}`]));
+}
+
 export function skuFor(slug, color, size) {
   const c = color.split('-').map((p) => p[0]).join('').toUpperCase();
   return `${slug.replace(/[^a-z0-9]/gi, '').slice(0, 10).toUpperCase()}-${c}-${size}`;
@@ -144,7 +157,7 @@ export function createVariants(db, productId, slug, colors, initialStock = 0, us
 const SEED_PRODUCTS = [
   ['Overcharge', 'bolt', '#00f0ff', '#ff2bd6', '', 'Signature ENRJI bolt with a charged halo. Heavyweight 240gsm organic cotton.', 3400, ['void-black', 'graphite', 'arctic-white'], 1, 'signature'],
   ['Sunset Protocol', 'horizon', '#ffb300', '#ff2bd6', '', 'Retro-future horizon with a wireframe grid that runs to infinity.', 3600, ['void-black', 'midnight-navy', 'plasma-purple'], 1, 'retro-future'],
-  ['Motherboard', 'circuit', '#39ff14', '#00f0ff', 'mb', 'Procedurally routed circuit traces. No two print runs look quite alike.', 3200, ['void-black', 'graphite', 'ion-teal'], 0, 'tech'],
+  ['Motherboard', 'circuit', '#39ff14', '#00f0ff', 'mb', 'Circuit traces routed across the chest, in glow-green ink.', 3200, ['void-black', 'graphite', 'ion-teal'], 0, 'tech'],
   ['Signal Lost', 'glitch', '#00f0ff', '#ff2bd6', 'ENRJI', 'Chromatic-aberration glitch type, printed with reflective ink.', 3000, ['void-black', 'arctic-white', 'solar-red'], 1, 'signature'],
   ['Hive Mind', 'hex', '#ffe600', '#ff7a00', '', 'Honeycomb lattice for collective thinkers.', 3000, ['void-black', 'graphite', 'midnight-navy'], 0, 'tech'],
   ['Low Orbit', 'orbit', '#7b5cff', '#00f0ff', '', 'A ringed world at 400km altitude.', 3400, ['midnight-navy', 'void-black', 'arctic-white'], 1, 'cosmic'],

@@ -1,11 +1,22 @@
 import { Router } from 'express';
 import { requireAdmin } from '../auth.js';
-import { createVariants, tx } from '../db.js';
+import { createVariants, tx, imagesFor } from '../db.js';
+import { randomBytes } from 'node:crypto';
+import { writeFileSync, unlinkSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { HttpError, STATUSES, getOrder, transition } from '../orders.js';
 import { productRow, makeRefunder } from './store.js';
 import { SHIRT_COLORS, DESIGN_TYPES } from '../../public/js/shirt.js';
 
 const HEX = /^#[0-9a-f]{6}$/i;
+
+/** Detect PNG / JPEG / WebP from magic bytes. */
+function imageType(b) {
+  if (b.length > 8 && b.readUInt32BE(0) === 0x89504e47) return 'png';
+  if (b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'jpg';
+  if (b.length > 12 && b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP') return 'webp';
+  return null;
+}
 
 function cleanProduct(body, partial = false) {
   const out = {};
@@ -59,14 +70,14 @@ export function adminRoutes(cfg) {
 
   r.get('/products', (_req, res) => {
     const rows = db.prepare('SELECT * FROM products ORDER BY active DESC, id DESC').all();
-    res.json({ products: rows.map((p) => productRow(p, variantsFor.all(p.id))), colors: SHIRT_COLORS, designTypes: DESIGN_TYPES });
+    res.json({ products: rows.map((p) => productRow(p, variantsFor.all(p.id), imagesFor(db, p.id))), colors: SHIRT_COLORS, designTypes: DESIGN_TYPES });
   });
 
   r.get('/products/:id', (req, res) => {
     const p = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
     if (!p) throw new HttpError(404, 'Product not found');
     const variants = variantsFor.all(p.id);
-    res.json({ product: { ...productRow(p, variants), variants } });
+    res.json({ product: { ...productRow(p, variants, imagesFor(db, p.id)), variants } });
   });
 
   function validColors(colors) {
@@ -109,6 +120,39 @@ export function adminRoutes(cfg) {
     res.json({ ok: true });
   });
 
+  // ---------- product photos ----------
+  // One photo per product colour. Body is the raw image (see app.js); type is sniffed, not trusted.
+  r.put('/products/:id/images/:color', (req, res) => {
+    const p = db.prepare('SELECT id FROM products WHERE id = ?').get(req.params.id);
+    if (!p) throw new HttpError(404, 'Product not found');
+    const { color } = req.params;
+    if (!db.prepare('SELECT 1 FROM variants WHERE product_id = ? AND color = ?').get(p.id, color)) throw new HttpError(400, 'Product has no such colour');
+    const buf = req.body;
+    if (!Buffer.isBuffer(buf) || !buf.length) throw new HttpError(400, 'Send the image as the request body');
+    const ext = imageType(buf);
+    if (!ext) throw new HttpError(415, 'Only PNG, JPEG or WebP images are accepted');
+    mkdirSync(cfg.uploadDir, { recursive: true });
+    const file = `${randomBytes(12).toString('hex')}.${ext}`;
+    writeFileSync(join(cfg.uploadDir, file), buf);
+    const old = db.prepare('SELECT file FROM product_images WHERE product_id = ? AND color = ?').get(p.id, color);
+    db.prepare(`INSERT INTO product_images (product_id, color, file) VALUES (?,?,?)
+                ON CONFLICT (product_id, color) DO UPDATE SET file = excluded.file, created_at = datetime('now')`).run(p.id, color, file);
+    if (old) removeUpload(old.file);
+    res.json({ images: imagesFor(db, p.id) });
+  });
+
+  r.delete('/products/:id/images/:color', (req, res) => {
+    const row = db.prepare('SELECT file FROM product_images WHERE product_id = ? AND color = ?').get(req.params.id, req.params.color);
+    if (!row) throw new HttpError(404, 'No photo for that colour');
+    db.prepare('DELETE FROM product_images WHERE product_id = ? AND color = ?').run(req.params.id, req.params.color);
+    removeUpload(row.file);
+    res.json({ images: imagesFor(db, Number(req.params.id)) });
+  });
+
+  function removeUpload(file) {
+    try { unlinkSync(join(cfg.uploadDir, file)); } catch { /* already gone */ }
+  }
+
   // ---------- inventory ----------
   r.get('/inventory', (req, res) => {
     const where = [];
@@ -116,7 +160,8 @@ export function adminRoutes(cfg) {
     if (req.query.q) { where.push('(p.name LIKE ? OR v.sku LIKE ?)'); const q = `%${String(req.query.q).slice(0, 60)}%`; args.push(q, q); }
     if (req.query.low) where.push('v.stock <= v.low_stock_threshold');
     if (!req.query.archived) where.push('p.active = 1');
-    const rows = db.prepare(`SELECT v.*, p.name AS product_name, p.slug, p.design, p.active FROM variants v JOIN products p ON p.id = v.product_id
+    const rows = db.prepare(`SELECT v.*, p.name AS product_name, p.slug, p.design, p.active,
+        (SELECT '/uploads/' || file FROM product_images WHERE product_id = p.id AND color = v.color) AS image FROM variants v JOIN products p ON p.id = v.product_id
       ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY p.name, v.color, v.id`).all(...args);
     res.json({ variants: rows.map((v) => ({ ...v, design: JSON.parse(v.design) })) });
   });

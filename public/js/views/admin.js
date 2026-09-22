@@ -1,4 +1,4 @@
-import { api, html, raw, shirt, money, colorLabel, colorHex, statusLabel, date, toast, session } from '../lib.js';
+import { api, html, raw, shirt, art, productArt, money, colorLabel, colorHex, statusLabel, date, toast, session } from '../lib.js';
 import { shirtSVG, SHIRT_COLORS, DESIGN_TYPES } from '../shirt.js';
 
 const TABS = [['dashboard', 'Dashboard'], ['orders', 'Orders'], ['inventory', 'Inventory'], ['products', 'Products'], ['payments', 'Payments']];
@@ -118,7 +118,7 @@ async function orderModal(id, onChange) {
     <div class="two-col">
       <div>
         <h3>Items</h3>
-        ${o.items.map((i) => html`<div class="cart-line"><div class="thumb">${shirt(i.color, i.design)}</div><div><b>${i.product_name}</b> × ${i.quantity}<div class="meta">${colorLabel(i.color)} · ${i.size} · <span class="mono">${i.sku}</span></div></div><div class="mono">${money(i.unit_price_cents * i.quantity)}</div></div>`)}
+        ${o.items.map((i) => html`<div class="cart-line"><div class="thumb">${art(i.color, i.design, i.image)}</div><div><b>${i.product_name}</b> × ${i.quantity}<div class="meta">${colorLabel(i.color)} · ${i.size} · <span class="mono">${i.sku}</span></div></div><div class="mono">${money(i.unit_price_cents * i.quantity)}</div></div>`)}
         <div class="totals" style="margin-top:8px"><div><span>Subtotal</span><span>${money(o.subtotal_cents)}</span></div><div><span>Shipping</span><span>${money(o.shipping_cents)}</span></div><div><span>Tax</span><span>${money(o.tax_cents)}</span></div><div class="grand"><span>Total</span><span>${money(o.total_cents)}</span></div></div>
       </div>
       <div>
@@ -174,7 +174,7 @@ async function inventory(pane) {
     pane.querySelector('#list').innerHTML = variants.length ? html`<table>
       <tr><th></th><th>Product</th><th>SKU</th><th>Variant</th><th>Stock</th><th>Alert at</th><th>Adjust</th></tr>
       ${variants.map((v) => html`<tr data-row="${v.id}">
-        <td><div class="inv-thumb">${shirt(v.color, v.design)}</div></td>
+        <td><div class="inv-thumb">${art(v.color, v.design, v.image)}</div></td>
         <td>${v.product_name}</td><td class="mono" style="font-size:12px">${v.sku}</td>
         <td><span class="swatch" style="display:inline-block;vertical-align:middle;background:${colorHex(v.color)}"></span> ${colorLabel(v.color)} · <b>${v.size}</b></td>
         <td class="stock-cell ${v.stock === 0 ? 'out' : v.stock <= v.low_stock_threshold ? 'low' : ''}">${v.stock}</td>
@@ -231,7 +231,7 @@ async function products(pane) {
       <div class="panel table-wrap"><table>
         <tr><th></th><th>Name</th><th>Category</th><th>Price</th><th>Colors</th><th>Stock</th><th>Status</th><th></th></tr>
         ${products.map((p) => html`<tr>
-          <td><div class="inv-thumb">${shirt(p.colors[0], p.design)}</div></td>
+          <td><div class="inv-thumb">${productArt(p)}</div></td>
           <td><b>${p.name}</b>${p.featured ? html` <span class="chip">featured</span>` : ''}</td>
           <td>${p.category}</td><td class="mono">${money(p.price_cents)}</td>
           <td><div class="swatches" style="margin:0">${p.colors.map((c) => html`<span class="swatch" title="${colorLabel(c)}" style="background:${colorHex(c)}"></span>`)}</div></td>
@@ -264,6 +264,7 @@ function editor(p, onSaved) {
           <label class="row" style="margin:0;color:var(--text)"><input type="checkbox" name="active" ${!p || p.active ? 'checked' : ''}> Live in store</label></div>
       </div>
       <div>
+        <p class="muted" style="font-size:12px;margin:0 0 8px">Fallback artwork, shown for any colour without a photo.</p>
         <div class="design-preview" id="pv"></div>
         <div class="field"><label>Design</label><select name="type">${DESIGN_TYPES.map((t) => html`<option ${t === d.type ? 'selected' : ''}>${t}</option>`)}</select></div>
         <div class="fields-2">
@@ -273,6 +274,12 @@ function editor(p, onSaved) {
         <div class="field"><label>Text (glitch design, max 12)</label><input name="text" maxlength="12" value="${d.text ?? ''}"></div>
         <label>Preview color</label><select id="pvc">${(p?.colors ?? Object.keys(SHIRT_COLORS)).map((c) => html`<option value="${c}">${colorLabel(c)}</option>`)}</select>
       </div>
+      <div style="grid-column:1/-1">
+        <h3>Product photos</h3>
+        ${p ? html`<p class="muted" style="font-size:13px">One front photo per colour. PNG, JPEG or WebP up to 8 MB. For the try-on to look right, use a front flat-lay PNG with a <b>transparent background</b>, cropped to the shirt.</p>
+          <div class="photo-grid" id="photos"></div>`
+        : html`<p class="muted" style="font-size:13px">Create the product first, then reopen it to upload photos.</p>`}
+      </div>
       <div style="grid-column:1/-1" class="spread">
         <span class="error" id="err"></span>
         <button class="btn">${p ? 'Save changes' : 'Create product'}</button>
@@ -280,11 +287,50 @@ function editor(p, onSaved) {
     </form>`);
   const f = m.el.querySelector('#pf');
   const pv = m.el.querySelector('#pv');
+
+  const photos = m.el.querySelector('#photos');
+  const drawPhotos = () => {
+    if (!photos) return;
+    photos.innerHTML = p.colors.map((c) => html`
+      <div class="photo-slot">
+        <div class="pic">${art(c, design(), p.images[c])}</div>
+        <div>${colorLabel(c)}</div>
+        <div class="row" style="margin-top:6px">
+          <label class="btn ghost sm" style="margin:0;color:var(--text)">${p.images[c] ? 'Replace' : 'Upload'}<input type="file" accept="image/png,image/jpeg,image/webp" data-upload="${c}" hidden></label>
+          ${p.images[c] ? html`<button type="button" class="btn danger sm" data-remove="${c}">✕</button>` : ''}
+        </div>
+      </div>`).join('');
+  };
+  photos?.addEventListener('change', async (e) => {
+    const input = e.target.closest('[data-upload]');
+    const file = input?.files[0];
+    if (!file) return;
+    e.stopPropagation();
+    try {
+      const res = await fetch(`/api/admin/products/${p.id}/images/${input.dataset.upload}`, { method: 'PUT', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Upload failed (${res.status})`);
+      p.images = data.images;
+      drawPhotos();
+      toast(`Photo saved for ${colorLabel(input.dataset.upload)}`);
+      onSaved();
+    } catch (ex) { toast(ex.message, true); }
+  });
+  photos?.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-remove]');
+    if (!b || !confirm(`Remove the ${colorLabel(b.dataset.remove)} photo?`)) return;
+    try {
+      ({ images: p.images } = await api(`/admin/products/${p.id}/images/${b.dataset.remove}`, { method: 'DELETE', body: {} }));
+      drawPhotos();
+      onSaved();
+    } catch (ex) { toast(ex.message, true); }
+  });
   const design = () => ({ type: f.elements.type.value, accent: f.elements.accent.value, accent2: f.elements.accent2.value, text: f.elements.text.value });
   const preview = () => (pv.innerHTML = shirtSVG({ color: m.el.querySelector('#pvc').value, design: design() }));
-  f.addEventListener('input', preview);
+  f.addEventListener('input', (e) => { if (!e.target.matches('[type=file]')) { preview(); drawPhotos(); } });
   m.el.querySelector('#pvc').addEventListener('change', preview);
   preview();
+  drawPhotos();
 
   f.addEventListener('submit', async (e) => {
     e.preventDefault();

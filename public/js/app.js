@@ -1,4 +1,4 @@
-import { cart, on, loadSession, session, html, raw, shirt, money, colorLabel, toast } from './lib.js';
+import { cart, on, loadSession, session, html, raw, art, money, colorLabel, toast } from './lib.js';
 
 // Route table: pattern → lazy view module. Views export render(el, ctx) and may return a cleanup fn.
 const routes = [
@@ -129,7 +129,7 @@ async function renderDrawer() {
   drawerBody.innerHTML = html`
     ${q.lines.map((l) => html`
       <div class="cart-line">
-        <div class="thumb">${shirt(l.color, l.design)}</div>
+        <div class="thumb">${art(l.color, l.design, l.image)}</div>
         <div>
           <a class="name" href="#/product/${l.slug}" data-close-drawer>${l.name}</a>
           <div class="meta">${colorLabel(l.color)} · ${l.size} · ${money(l.price_cents)}</div>

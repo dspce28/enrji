@@ -5,9 +5,12 @@ import { openDb, seed } from '../server/db.js';
 import { createApp } from '../server/app.js';
 import { expireStaleOrders } from '../server/orders.js';
 import { luhnValid } from '../server/payments.js';
+import { mkdtempSync, existsSync, readdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const WEBHOOK_SECRET = 'whsec_test';
-let server, base, db;
+let server, base, db, uploadDir;
 const stripeCalls = [];
 
 // Stand-in for the Stripe REST client so tests never hit the network.
@@ -27,7 +30,8 @@ const fakeStripe = {
 before(async () => {
   db = openDb(':memory:');
   seed(db, { adminEmail: 'admin@test.local', adminPassword: 'adminpass1' });
-  const app = createApp({ db, stripe: fakeStripe, demoPayments: true, baseUrl: 'http://localhost', stripeWebhookSecret: WEBHOOK_SECRET });
+  uploadDir = mkdtempSync(join(tmpdir(), 'enrji-uploads-'));
+  const app = createApp({ db, uploadDir, stripe: fakeStripe, demoPayments: true, baseUrl: 'http://localhost', stripeWebhookSecret: WEBHOOK_SECRET });
   await new Promise((r) => { server = app.listen(0, r); });
   base = `http://127.0.0.1:${server.address().port}/api`;
 });
@@ -40,7 +44,7 @@ function client() {
     const res = await fetch(base + path, {
       method,
       headers: { ...(body !== undefined && { 'Content-Type': 'application/json' }), ...(cookie && { Cookie: cookie }), ...headers },
-      body: body === undefined ? undefined : typeof body === 'string' ? body : JSON.stringify(body),
+      body: body === undefined ? undefined : typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body),
     });
     const sc = res.headers.get('set-cookie');
     if (sc) cookie = sc.split(';')[0];
@@ -221,6 +225,46 @@ test('admin: create product, adjust inventory, movement log', async () => {
   assert.deepEqual(log.body.movements.map((m) => m.delta), [-3, 6, 4]);
   const stats = await admin('/admin/stats');
   assert.ok(stats.body.revenue_cents > 0);
+});
+
+test('admin product photos: upload, validate, serve, use everywhere, replace, delete', async () => {
+  const admin = client();
+  await admin('/auth/login', { method: 'POST', body: { email: 'admin@test.local', password: 'adminpass1' } });
+  const v = variantWithStock(2);
+  const url = `/admin/products/${v.product_id}/images/${v.color}`;
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(64, 1)]);
+  const put = (body, type, c = admin) => c(url, { method: 'PUT', body, headers: { 'Content-Type': type } });
+
+  assert.equal((await put(png, 'image/png', client())).status, 403, 'admins only');
+  assert.equal((await put(Buffer.from('<svg onload=alert(1)>'), 'image/png')).status, 415, 'magic bytes are checked');
+  assert.equal((await admin(url, { method: 'PUT', body: {} })).status, 415, 'JSON is not an image');
+  assert.equal((await admin(`/admin/products/${v.product_id}/images/no-such-colour`, { method: 'PUT', body: png, headers: { 'Content-Type': 'image/png' } })).status, 400);
+
+  const up = await put(png, 'image/png');
+  assert.equal(up.status, 200, JSON.stringify(up.body));
+  const src = up.body.images[v.color];
+  assert.match(src, /^\/uploads\/[0-9a-f]{24}\.png$/);
+  const served = await fetch(base.replace('/api', '') + src);
+  assert.equal(served.status, 200);
+  assert.equal(served.headers.get('content-type'), 'image/png');
+  assert.equal(served.headers.get('x-content-type-options'), 'nosniff');
+
+  const slug = db.prepare('SELECT slug FROM products WHERE id = ?').get(v.product_id).slug;
+  const c = client();
+  assert.equal((await c(`/products/${slug}`)).body.product.images[v.color], src);
+  const q = await c('/cart/quote', { method: 'POST', body: { items: [{ variantId: v.id, quantity: 1 }] } });
+  assert.equal(q.body.lines[0].image, src);
+  const co = await c('/checkout', { method: 'POST', body: { items: [{ variantId: v.id, quantity: 1 }], email: 'p@x.io', name: 'P', address, provider: 'demo' } });
+  assert.equal(co.body.order.items[0].image, src);
+
+  const jpg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(64, 2)]);
+  const replaced = await put(jpg, 'image/jpeg');
+  assert.match(replaced.body.images[v.color], /\.jpg$/);
+  assert.ok(!existsSync(join(uploadDir, src.split('/').pop())), 'old file removed');
+
+  const del = await admin(url, { method: 'DELETE', body: {} });
+  assert.equal(del.body.images[v.color], undefined);
+  assert.deepEqual(readdirSync(uploadDir), []);
 });
 
 test('luhn', () => {

@@ -29,6 +29,7 @@ const CSP = [
  * @param {boolean} cfg.demoPayments
  * @param {string} cfg.baseUrl
  * @param {boolean} [cfg.secureCookies]
+ * @param {string} cfg.uploadDir  where product photos are stored
  */
 export function createApp(cfg) {
   const app = express();
@@ -47,13 +48,17 @@ export function createApp(cfg) {
 
   // Stripe needs the exact raw bytes to verify its signature, so this route is mounted before express.json().
   app.use('/api/payments/stripe/webhook', express.raw({ type: '*/*', limit: '1mb' }));
+  // Product photo uploads arrive as raw image bytes.
+  const isImageUpload = (req) => req.method === 'PUT' && /^\/admin\/products\/\d+\/images\/[\w-]+$/.test(req.path);
+  app.use('/api/admin/products', express.raw({ type: 'image/*', limit: '8mb' }));
 
   // Only JSON bodies are accepted on mutating API calls. Browsers cannot send
   // cross-site JSON without a CORS preflight, which acts as CSRF protection
   // alongside SameSite=Lax cookies.
   app.use('/api', (req, res, next) => {
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || req.path === '/payments/stripe/webhook') return next();
-    if (!req.is('application/json')) return res.status(415).json({ error: 'Content-Type must be application/json' });
+    // image/* bodies also force a CORS preflight, so they get the same CSRF protection as JSON.
+    if (isImageUpload(req) ? !req.is('image/*') : !req.is('application/json')) return res.status(415).json({ error: isImageUpload(req) ? 'Upload must be an image' : 'Content-Type must be application/json' });
     next();
   });
   app.use(express.json({ limit: '200kb' }));
@@ -72,6 +77,8 @@ export function createApp(cfg) {
 
   app.get('/vendor/three.module.js', (_req, res) => res.sendFile(join(root, 'node_modules/three/build/three.module.js')));
   app.get('/vendor/three.core.js', (_req, res) => res.sendFile(join(root, 'node_modules/three/build/three.core.js')));
+  // Upload names are random and never reused, so they can be cached hard.
+  app.use('/uploads', express.static(cfg.uploadDir, { maxAge: '30d', immutable: true, index: false, dotfiles: 'deny' }));
   app.use(express.static(join(root, 'public'), { maxAge: '1h', index: 'index.html' }));
 
   // eslint-disable-next-line no-unused-vars

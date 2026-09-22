@@ -38,6 +38,9 @@ export function html(strings, ...vals) {
 }
 export const raw = (s) => new Safe(String(s));
 export const shirt = (color, design) => raw(shirtSVG({ color, design }));
+/** Product photo when one is uploaded for this colour, otherwise the drawn design. */
+export const art = (color, design, image) => (image ? raw(`<img class="photo" src="${esc(image)}" alt="" loading="lazy">`) : shirt(color, design));
+export const productArt = (p, color = p.colors[0]) => art(color, p.design, p.images?.[color]);
 
 export function toast(msg, isError = false) {
   const el = document.createElement('div');

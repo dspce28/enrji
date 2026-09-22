@@ -3,14 +3,15 @@ import { createSession, destroySession, hashPassword, verifyPassword, sessionCoo
 import {
   HttpError, PRICING, priceCart, createOrder, getOrder, publicOrder, markPaid, recordFailedPayment, transition,
 } from '../orders.js';
+import { imagesFor } from '../db.js';
 import { demoCharge, verifyStripeSignature, DEMO_DECLINE_CARD } from '../payments.js';
 
-export function productRow(p, variants) {
+export function productRow(p, variants, images = {}) {
   const design = JSON.parse(p.design);
   const colors = [...new Set(variants.map((v) => v.color))];
   const totalStock = variants.reduce((s, v) => s + v.stock, 0);
   return { id: p.id, slug: p.slug, name: p.name, description: p.description, category: p.category, price_cents: p.price_cents,
-    design, featured: !!p.featured, active: !!p.active, colors, total_stock: totalStock };
+    design, featured: !!p.featured, active: !!p.active, colors, total_stock: totalStock, images };
 }
 
 /** Refund the captured payment for an order through whichever provider took it. */
@@ -48,14 +49,14 @@ export function storeRoutes(cfg) {
     const order = { 'price-asc': 'price_cents ASC', 'price-desc': 'price_cents DESC', new: 'created_at DESC, id DESC' }[req.query.sort] || 'featured DESC, id ASC';
     const rows = db.prepare(`SELECT * FROM products WHERE ${where.join(' AND ')} ORDER BY ${order}`).all(...args);
     const categories = db.prepare('SELECT DISTINCT category FROM products WHERE active = 1 ORDER BY category').all().map((c) => c.category);
-    res.json({ products: rows.map((p) => productRow(p, variantsFor.all(p.id))), categories });
+    res.json({ products: rows.map((p) => productRow(p, variantsFor.all(p.id), imagesFor(db, p.id))), categories });
   });
 
   r.get('/products/:slug', (req, res) => {
     const p = db.prepare('SELECT * FROM products WHERE slug = ? AND active = 1').get(req.params.slug);
     if (!p) throw new HttpError(404, 'Product not found');
     const variants = variantsFor.all(p.id);
-    res.json({ product: { ...productRow(p, variants), variants } });
+    res.json({ product: { ...productRow(p, variants, imagesFor(db, p.id)), variants } });
   });
 
   r.post('/cart/quote', (req, res) => {
@@ -195,7 +196,7 @@ export function storeRoutes(cfg) {
     if (o.status === 'paid') {
       return res.json({ order: publicOrder(await transition(db, o.id, 'refunded', { note: 'Cancelled by customer, refunded', refund: makeRefunder(cfg) })) });
     }
-    throw new HttpError(409, 'This order is already in production and can no longer be cancelled online');
+    throw new HttpError(409, 'This order is already being packed and can no longer be cancelled online. Contact us to arrange a return.');
   });
 
   return r;

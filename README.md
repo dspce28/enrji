@@ -8,9 +8,17 @@ A complete e-commerce site for graphic tees, with a neon/cyber look:
 - **Orders**: stock is reserved at checkout, unpaid orders auto-expire (30 min demo / 60 min Stripe) and release their stock, and every status change goes on a timeline. Status follows a state machine: `pending_payment → paid → processing → shipped → delivered`, plus `cancelled` / `refunded`. Customers can cancel and get a refund before production starts.
 - **Inventory**: per-SKU stock (product × color × size), low-stock thresholds and alerts, restock/adjust/damaged/set-count actions, and a full movement ledger (sales, releases and refunds included).
 - **Payments**: **Stripe Checkout** (a real hosted payment page with a signed webhook and a return-time verification fallback, plus refunds through the Stripe API) and a **demo card processor** for development. Payments are idempotent, and a late payment on an expired order is flagged for manual refund.
-- **Admin console** (`#/admin`): KPIs, 14-day revenue, low stock, top sellers; order management with fulfilment/tracking/refunds; inventory; a product editor with live design preview; a payment ledger.
+- **Admin console** (`#/admin`): KPIs, 14-day revenue, low stock, top sellers; order management with fulfilment/tracking/refunds; inventory; a product editor with **photo upload per colour**; a payment ledger.
 
-Every shirt image is rendered from code (`public/js/shirt.js`): 12 generative designs × 7 fabric colors, with no image assets. The same renderer feeds the catalog, the 3D textures and the try-on overlay.
+The store sells **stock you hold**: the shop only sells what's recorded in inventory, and orders are picked, packed and shipped from your own stock (no print-on-demand).
+
+### Product photos
+
+In **Admin → Products → Edit**, upload one front photo per colour (PNG/JPEG/WebP, ≤ 8 MB). The photo is used everywhere: shop cards, the product page, the cart, orders, the 3D store walls and the try-on overlay.
+
+For the try-on to look right, shoot each shirt as a **front flat-lay, cropped to the shirt, with the background removed (transparent PNG)**. A photo with a white background shows up as a white rectangle over the customer's photo. Shoulder auto-fit assumes the shoulder seams sit about 20% and 80% across and 12% down the image.
+
+Until a colour has a photo, the store shows placeholder artwork drawn in code (`public/js/shirt.js`). The 12 seeded products are demo data: replace or archive them before launch.
 
 ## Run it
 
@@ -60,8 +68,9 @@ test/api.test.js
 
 ## Before going live, you still need
 
-- **Hosting with a persistent disk.** SQLite lives in a file. Serverless platforms (e.g. Vercel functions) wipe it, so use a VM/container host (Fly.io, Railway, Render, a VPS) with a volume, or move to Postgres.
+- **Hosting with a persistent disk.** The database (`DATABASE_PATH`) and product photos (`UPLOAD_DIR`, default `data/uploads`) are files. Serverless platforms (e.g. Vercel functions) wipe them, so use a VM/container host (Fly.io, Railway, Render, a VPS) with a volume, and back up the `data/` folder.
 - **Transactional email** (order confirmation and shipping notifications). Nothing is sent right now: customers see status on the order page.
 - **Real tax and shipping rates.** They're currently a flat 8% tax and a $6 flat rate (free over $75) in `server/orders.js`. Real tax depends on jurisdiction (Stripe Tax can handle it).
-- **Print/fulfilment integration** (e.g. Printful or Printify) if you don't print in-house.
+- **Shipping labels.** Fulfilment is manual: pack the order, buy a label with your carrier, then paste the tracking number when you mark the order *shipped*.
+- **Your real catalogue**: product photos, stock counts (use *Set count* in Inventory after a stocktake) and prices.
 - **Legal pages**: privacy policy, terms, returns.

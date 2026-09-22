@@ -1,16 +1,16 @@
-import { api, html, shirt, money, colorHex, colorLabel } from '../lib.js';
+import { api, html, productArt, money, colorHex, colorLabel } from '../lib.js';
 
 export function productCards(products) {
   if (!products.length) return html`<div class="empty" style="grid-column:1/-1">No tees match that search.</div>`;
-  return products.map((p) => html`
+  return html`${products.map((p) => html`
     <a class="card" href="#/product/${p.slug}">
       ${p.total_stock === 0 ? html`<span class="chip flag">Sold out</span>` : p.featured ? html`<span class="chip flag" style="color:var(--cyan)">Featured</span>` : ''}
-      <div class="art">${shirt(p.colors[0], p.design)}</div>
+      <div class="art">${productArt(p)}</div>
       <div class="info">
         <div class="spread"><span class="name">${p.name}</span><span class="price">${money(p.price_cents)}</span></div>
         <div class="swatches">${p.colors.map((c) => html`<span class="swatch" title="${colorLabel(c)}" style="background:${colorHex(c)}"></span>`)}</div>
       </div>
-    </a>`);
+    </a>`)}`;
 }
 
 export async function render(el, { query, navigate }) {
