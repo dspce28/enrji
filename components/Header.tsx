@@ -6,14 +6,18 @@ import { useEffect, useRef, useState } from 'react';
 import { useCart } from './cart';
 import { accountUrl } from '@/lib/config';
 
-const NAV = [
-  { href: '/shop', label: 'Shop all' },
-  { href: '/collections/tees', label: 'Tees' },
+const LEFT = [
+  { href: '/shop', label: 'Shop' },
   { href: '/collections/sweatshirts', label: 'Sweatshirts' },
-  { href: '/trial-room', label: 'Trial Room', isNew: true },
-  { href: '/virtual-store', label: 'Virtual Store', isNew: true },
+  { href: '/collections/tees', label: 'Tees' },
+  { href: '/collections/limited-edition', label: 'Limited' },
+];
+const RIGHT = [
+  { href: '/virtual-store', label: 'Virtual Store' },
+  { href: '/trial-room', label: 'Trial Room' },
   { href: '/our-story', label: 'Our Story' },
 ];
+const NAV = [...LEFT, ...RIGHT];
 
 export function Header() {
   const path = usePathname();
@@ -39,31 +43,36 @@ export function Header() {
 
   return (
     <>
-      <header className={`header${scrolled || path !== '/' ? ' scrolled' : ''}`}>
+      <header className={`header${scrolled ? ' scrolled' : ''}`}>
         <div className="container header-inner">
-          <Link href="/" className="wordmark" aria-label="ENRJI home"><span className="dot" />ENRJI</Link>
-          <nav className="nav" aria-label="Main">
-            {NAV.map((n) => (
-              <Link key={n.href} href={n.href} className={n.isNew ? 'new' : undefined} aria-current={path.startsWith(n.href) ? 'page' : undefined}>{n.label}</Link>
-            ))}
-          </nav>
-          <div className="header-actions">
-            <a className="icon-btn" href={accountUrl} aria-label="Account">
-              <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" /></svg>
-            </a>
-            <button className="icon-btn" onClick={() => setOpen(true)} aria-label={`Open bag, ${count} items`}>
-              <svg viewBox="0 0 24 24"><path d="M5 8h14l-1.2 12H6.2z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></svg>
-              {count > 0 && <span className={`count${bump ? ' bump' : ''}`}>{count}</span>}
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
             <button className="icon-btn menu-btn" onClick={() => setMenu(true)} aria-label="Open menu" aria-expanded={menu}>
-              <svg viewBox="0 0 24 24"><path d="M4 8h16M4 16h16" /></svg>
+              <svg viewBox="0 0 24 24"><path d="M4 9h16M4 15h16" /></svg>
             </button>
+            <nav className="nav" aria-label="Shop">
+              {LEFT.map((n) => <Link key={n.href} href={n.href} aria-current={path.startsWith(n.href) ? 'page' : undefined}>{n.label}</Link>)}
+            </nav>
+          </div>
+          <Link href="/" className="wordmark" aria-label="ENRJI home">ENRJI</Link>
+          <div className="header-actions">
+            <nav className="nav" aria-label="Experiences">
+              {RIGHT.map((n) => <Link key={n.href} href={n.href} aria-current={path.startsWith(n.href) ? 'page' : undefined}>{n.label}</Link>)}
+            </nav>
+            <div className="icons">
+              <a className="icon-btn" href={accountUrl} aria-label="Account">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" /></svg>
+              </a>
+              <button className="icon-btn" onClick={() => setOpen(true)} aria-label={`Open bag, ${count} items`}>
+                <svg viewBox="0 0 24 24"><path d="M5 8h14l-1.2 12H6.2z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></svg>
+                {count > 0 && <span className={`count${bump ? ' bump' : ''}`}>{count}</span>}
+              </button>
+            </div>
           </div>
         </div>
       </header>
       <div className={`mobile-menu${menu ? ' open' : ''}`} aria-hidden={!menu} inert={!menu}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span className="wordmark"><span className="dot" />ENRJI</span>
+          <span className="wordmark">ENRJI</span>
           <button className="icon-btn" onClick={() => setMenu(false)} aria-label="Close menu"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
         </div>
         <nav aria-label="Mobile">
