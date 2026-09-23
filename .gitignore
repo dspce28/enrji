@@ -8,5 +8,3 @@ next-env.d.ts
 data/*.db
 prototype/node_modules/
 prototype/data/
-public/mediapipe/
-public/models/
