@@ -1,19 +1,27 @@
 import type { Metadata } from 'next';
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 import { getProducts } from '@/lib/catalogue';
 import { TrialRoom, type TryProduct } from '@/components/TrialRoom';
-import { TRYON } from '@/data/tryon';
+import garments from '@/data/garments.json';
+import prints from '@/data/prints.json';
 
 export const revalidate = 300;
 export const metadata: Metadata = { title: 'Trial Room', description: 'Try any ENRJI tee or sweatshirt on your own photo. Private: your photo never leaves your device.' };
+
+type Garment = { color: string; colors?: Record<string, string>; ink?: string };
+const GARMENTS = garments as Record<string, Garment>;
+const PRINTS = new Set<string>(prints);
+const print = (name: string) => (PRINTS.has(name) ? `/prints/${name}.png` : null);
 
 export default async function TrialRoomPage({ searchParams }: { searchParams: Promise<{ product?: string }> }) {
   const { product } = await searchParams;
   const all = (await getProducts()).filter((p) => p.available);
   const items: TryProduct[] = all.map((p) => {
-    const cfg = TRYON[p.handle] ?? {};
-    const art = `/prints/${p.handle}.png`;
+    const g: Garment = GARMENTS[p.handle] ?? { color: '#1c2a44' };
+    // Print artwork was cut from the flat-lay photos on the store; colour variants may have their own.
+    const artwork: Record<string, string> = {};
+    const base = print(p.handle);
+    if (base) artwork['*'] = base;
+    for (const c of p.colors) { const a = print(`${p.handle}--${c.toLowerCase()}`); if (a) artwork[c] = a; }
     return {
       handle: p.handle,
       title: p.title,
@@ -21,9 +29,10 @@ export default async function TrialRoomPage({ searchParams }: { searchParams: Pr
       kind: p.kind,
       image: p.images[0]?.src ?? null,
       colors: p.colors,
-      defaultColor: cfg.color ?? '#1b2240',
-      ink: cfg.ink ?? '#f4efe6',
-      artwork: existsSync(join(process.cwd(), 'public', art)) ? art : null,
+      colorHex: g.colors ?? {},
+      defaultColor: g.color,
+      ink: g.ink ?? '#f4efe6',
+      artwork,
       variants: p.variants.map((v) => ({ id: v.id, size: v.size, color: v.color, available: v.available, price: v.price, compareAt: v.compareAt, image: v.image })),
     };
   });

@@ -10,7 +10,7 @@
 export type GarmentKind = 'tee' | 'sweatshirt';
 
 export const GARMENT_BOX = { w: 400, h: 440, span: 244, shoulderY: 58 };
-export const PRINT_BOX = { cx: 200, cy: 190, w: 176, h: 150 };
+export const PRINT_BOX = { cx: 200, cy: 196, w: 196, h: 172 };
 
 const TEE = 'M150 38 Q200 82 250 38 L322 58 Q362 74 396 140 L348 174 L312 150 L314 420 Q200 434 86 420 L88 150 L52 174 L4 140 Q38 74 78 58 Z';
 const SWEAT = 'M150 38 Q200 80 250 38 L322 58 Q352 66 364 112 L394 390 L352 400 L318 176 L318 402 Q200 414 82 402 L82 176 L48 400 L6 390 L36 112 Q48 66 78 58 Z';

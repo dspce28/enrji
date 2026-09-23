@@ -9,7 +9,7 @@ import { Price } from './Price';
 import { checkoutUrl } from '@/lib/checkout';
 import { MULTIBUY, PROMISES, whatsappLink } from '@/lib/config';
 import { cdn, inr, titleCase } from '@/lib/format';
-import { TEE_SIZES } from '@/lib/sizes';
+import { sizesFor } from '@/lib/sizes';
 
 const SWATCH: Record<string, string> = { blue: '#1d4b66', navy: '#1a2140', black: '#111', white: '#eee', grey: '#777' };
 
@@ -167,18 +167,16 @@ export function ProductView({ p, twin }: { p: Product; twin: Pick<Product, 'hand
               <div className="acc-body">{p.care}</div>
             </details>
           )}
-          {p.kind === 'tee' && (
-            <details className="acc">
-              <summary>Size chart</summary>
-              <div className="acc-body">
-                <table className="size-table">
-                  <thead><tr><th>Size</th><th>Chest (in)</th><th>Length (in)</th></tr></thead>
-                  <tbody>{TEE_SIZES.map((s) => <tr key={s.size}><td>{s.size}</td><td>{s.chest}</td><td>{s.length}</td></tr>)}</tbody>
-                </table>
-                <p style={{ fontSize: 13, marginTop: 10 }}>Measured flat across the garment. Chest is the full circumference.</p>
-              </div>
-            </details>
-          )}
+          <details className="acc">
+            <summary>Size chart</summary>
+            <div className="acc-body">
+              <table className="size-table">
+                <thead><tr><th>Size</th><th>Chest (in)</th><th>Length (in)</th></tr></thead>
+                <tbody>{sizesFor(p.kind).map((s) => <tr key={s.size}><td>{s.size}</td><td>{s.chest}</td><td>{s.length}</td></tr>)}</tbody>
+              </table>
+              <p style={{ fontSize: 13, marginTop: 10 }}>Measured flat across the garment. Chest is the full circumference.{p.kind === 'sweatshirt' && p.sizes.includes('3XL') ? ' 3XL measurements aren’t published yet — message us on WhatsApp before ordering.' : ''}</p>
+            </div>
+          </details>
           <details className="acc">
             <summary>Shipping & returns</summary>
             <div className="acc-body">

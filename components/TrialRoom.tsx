@@ -13,9 +13,10 @@ export interface TryProduct {
   kind: GarmentKind;
   image: string | null;
   colors: string[];
-  defaultColor: string;   // hex used when the product has no colour option
-  ink: string;
-  artwork: string | null; // /prints/<handle>.png when supplied
+  colorHex: Record<string, string>; // garment colour per colour option
+  defaultColor: string;             // garment colour when there's no colour option
+  ink: string;                      // print colour for the typeset fallback
+  artwork: Record<string, string>;  // print PNG per colour option, '*' for all colours
   variants: { id: number; size: string; color: string | null; available: boolean; price: number; compareAt: number | null; image: string | null }[];
 }
 
@@ -118,13 +119,14 @@ export function TrialRoom({ products, initial }: { products: TryProduct[]; initi
     (async () => {
       await document.fonts?.ready;
       let artwork: HTMLImageElement | null = null;
-      if (product.artwork) {
+      const src = (color && product.artwork[color]) || product.artwork['*'];
+      if (src) {
         artwork = new Image();
-        artwork.src = product.artwork;
+        artwork.src = src;
         try { await artwork.decode(); } catch { artwork = null; }
       }
       if (cancelled) return;
-      const hex = color ? GARMENT_COLORS[color.toLowerCase()] ?? product.defaultColor : product.defaultColor;
+      const hex = (color && product.colorHex[color]) || (color ? GARMENT_COLORS[color.toLowerCase()] : null) || product.defaultColor;
       overlay.current = drawGarment({ kind: product.kind, color: hex, ink: product.ink, slogan: product.baseName, artwork }, 2.5, mode === 'print');
       const next = mode === 'print' ? G_PRINT : G_FULL;
       reanchor(geom.current, next);
@@ -370,12 +372,12 @@ export function TrialRoom({ products, initial }: { products: TryProduct[]; initi
         <div>
           <p style={{ margin: 0, fontWeight: 700, fontSize: 18 }}>{titleCase(product.baseName)}</p>
           <p className="muted" style={{ margin: '2px 0 0', fontSize: 14 }}>{product.kind === 'tee' ? 'Half-sleeve tee' : 'Sweatshirt'} · {inr(variants[0]?.price ?? 0)}</p>
-          {!product.artwork && <p className="fine" style={{ textAlign: 'left', marginTop: 8 }}>Preview print: the slogan set in our typeface. See product photos for the exact artwork.</p>}
+          {!product.artwork['*'] && !(color && product.artwork[color]) && <p className="fine" style={{ textAlign: 'left', marginTop: 8 }}>Preview print: the slogan set in our typeface. See product photos for the exact artwork.</p>}
         </div>
         {product.colors.length > 1 && (
           <div>
             <div className="opt-label">Colour <span>{color}</span></div>
-            <div className="swatches">{product.colors.map((c) => <button key={c} className="swatch" aria-pressed={c === color} aria-label={c} style={{ background: GARMENT_COLORS[c.toLowerCase()] ?? '#444' }} onClick={() => setColor(c)} />)}</div>
+            <div className="swatches">{product.colors.map((c) => <button key={c} className="swatch" aria-pressed={c === color} aria-label={c} style={{ background: product.colorHex[c] ?? GARMENT_COLORS[c.toLowerCase()] ?? '#444' }} onClick={() => setColor(c)} />)}</div>
           </div>
         )}
         <div>

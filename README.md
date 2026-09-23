@@ -18,7 +18,10 @@ The redesigned ENRJI website. It is a **Next.js front end over the live Shopify 
 | Virtual Store | Walkable 3D gallery (Three.js) with the product photography on the walls and the Live Like Krishna edition centre stage; guided tour; tap a poster to add to bag |
 
 ### Trial Room print artwork
-Until real artwork is supplied, the Trial Room typesets each slogan in the brand face on a drawn garment. To use the real print, save it as a **transparent PNG trimmed to the print** at `public/prints/<product-handle>.png` (e.g. `public/prints/i-am-energy.png`) and redeploy. Garment colour and print colour overrides live in `data/tryon.ts`.
+The Trial Room draws each tee or sweatshirt in its real colour with its real print. The prints in `public/prints/` were cut out of the flat-lay product photos on enrji.in, and garment colours were sampled from the same photos (`data/garments.json`). `npm run build` regenerates `data/prints.json`, the list the Trial Room reads.
+
+- Products without a usable flat-lay (Energy Fade, which is tone-on-tone black, and Healthy Is New Rich) show the slogan typeset in the brand face instead.
+- For sharper results, replace any file with the print artwork from your designer: a transparent PNG trimmed to the print, named `<product-handle>.png` (per colour: `<handle>--<colour>.png`, e.g. `believe--black.png`).
 
 ## Run locally
 
