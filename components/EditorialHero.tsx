@@ -50,6 +50,7 @@ export function EditorialHero({ pairs, title, sub }: { pairs: [HeroFrame, HeroFr
         <div className="ehero-links">
           <Link href="/collections/sweatshirts">Sweatshirts</Link>
           <Link href="/collections/tees">Tees</Link>
+          <Link href="/lookbook">Lookbook</Link>
         </div>
       </div>
       {pairs.length > 1 && (

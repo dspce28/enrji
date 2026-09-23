@@ -10,7 +10,7 @@ const LEFT = [
   { href: '/shop', label: 'Shop' },
   { href: '/collections/sweatshirts', label: 'Sweatshirts' },
   { href: '/collections/tees', label: 'Tees' },
-  { href: '/collections/limited-edition', label: 'Limited' },
+  { href: '/lookbook', label: 'Lookbook' },
 ];
 const RIGHT = [
   { href: '/virtual-store', label: 'Virtual Store' },

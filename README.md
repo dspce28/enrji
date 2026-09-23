@@ -16,6 +16,7 @@ The redesigned ENRJI website. It is a **Next.js front end over the live Shopify 
 | Cart | Slide-out bag, stock re-check before checkout, multi-buy offer note |
 | Trial Room | Upload a photo, live camera or mannequin. On-device body tracking (MediaPipe pose + clothes/skin segmentation) warps the garment onto shoulders, torso and arms, keeps face, hair and hands in front, recolours the shopper's own top where it shows, and carries over the photo's shading. "Print on my clothes" mode; 360° view; save image; add to bag. Photos never leave the browser |
 | Home | Editorial "quiet luxury" page: paired model photographs that open from a centre window (tejint-style), a brand statement, the Live Like Krishna edition, category tiles, a curated edit, an index of the four energies with floating photographs, the founder's words |
+| Lookbook | After tejint.com's studio: a full-screen horizontal gallery of the editorial photographs (scroll, drag or swipe) with parallax inside each frame, letter-by-letter titles and an index; tap a look to open the viewer, where each image opens from a centred window. Photos are listed in `data/lookbook.json` as [product handle, image index] |
 | Virtual Store | Black-and-gold walkable 3D store (Three.js) with an animated entrance; the model photos on the walls have real depth; life-size 3D models on the centre stage and on plinths turn to face you; guided tour; tap anything to add to bag |
 | 360° view | Product pages and the Trial Room show each tee/sweatshirt as a 3D garment in its real colour and print; drag to spin |
 

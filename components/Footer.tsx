@@ -17,6 +17,7 @@ export function Footer() {
               <li><Link href="/collections/tees">Tees</Link></li>
               <li><Link href="/collections/sweatshirts">Sweatshirts</Link></li>
               <li><Link href="/collections/limited-edition">Limited edition</Link></li>
+              <li><Link href="/lookbook">Lookbook</Link></li>
               <li><Link href="/trial-room">Trial Room</Link></li>
               <li><Link href="/virtual-store">Virtual Store</Link></li>
             </ul>
