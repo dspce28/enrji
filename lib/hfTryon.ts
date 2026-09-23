@@ -21,14 +21,19 @@ async function upload(blob: Blob, name: string, signal?: AbortSignal): Promise<s
 
 export interface TryOnStatus { stage: 'uploading' | 'queued' | 'generating' | 'downloading'; position?: number; eta?: number }
 
-/** Returns the generated photo. Throws with a readable message when the free service is busy or out of quota. */
-export async function aiTryOn(person: Blob, garment: Blob, description: string, onStatus?: (s: TryOnStatus) => void, signal?: AbortSignal): Promise<Blob> {
+/**
+ * Returns the generated photo. With a mask (white = may repaint), the person image must already be 3:4 and
+ * the result is the same size; without one, the Space finds the upper body itself and crops as it likes.
+ * Throws with the Space's message when it is busy or out of quota.
+ */
+export async function aiTryOn(person: Blob, garment: Blob, description: string, mask: Blob | null, onStatus?: (s: TryOnStatus) => void, signal?: AbortSignal): Promise<Blob> {
   onStatus?.({ stage: 'uploading' });
-  const [p, g] = await Promise.all([upload(person, 'person.jpg', signal), upload(garment, 'garment.jpg', signal)]);
+  const [p, g, m] = await Promise.all([upload(person, 'person.jpg', signal), upload(garment, 'garment.jpg', signal), mask ? upload(mask, 'mask.png', signal) : Promise.resolve(null)]);
   const r = await fetch(`${TRYON_SPACE}/call/tryon`, {
     method: 'POST', signal,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ data: [{ background: ref(p), layers: [], composite: null }, ref(g), description, true, true, 30, Math.floor(Math.random() * 10000)] }),
+    // Args: image + drawn mask, garment, description, auto-mask, auto-crop, steps, seed.
+    body: JSON.stringify({ data: [{ background: ref(p), layers: m ? [ref(m)] : [], composite: null }, ref(g), description, !m, !m, 30, Math.floor(Math.random() * 10000)] }),
   });
   if (!r.ok) throw new Error(`start ${r.status}`);
   const { event_id } = await r.json();
@@ -51,7 +56,7 @@ export async function aiTryOn(person: Blob, garment: Blob, description: string, 
       else if (line.startsWith('data:')) {
         const data = line.slice(5).trim();
         if (event === 'complete') result = JSON.parse(data);
-        else if (event === 'error') error = data && data !== 'null' ? data : 'The free try-on service is busy or has hit its daily limit.';
+        else if (event === 'error') error = data && data !== 'null' ? data : 'busy';
         else if (event === 'generating') onStatus?.({ stage: 'generating' });
       }
     }

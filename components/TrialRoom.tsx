@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { drawGarment, GARMENT_COLORS, type GarmentKind } from '@/lib/garment';
 import { aiTryOn, type TryOnStatus } from '@/lib/hfTryon';
+import { buildMask, padTo34, preloadMaskModels, type TryOnMask } from '@/lib/tryonMask';
 import { cdn, inr, titleCase } from '@/lib/format';
 import { useCart } from './cart';
 
@@ -24,7 +25,7 @@ export interface TryProduct {
 
 export interface SamplePhoto { src: string; label: string }
 
-const MAX_SIDE = 1024;
+const MAX_SIDE = 1536;   // working size of the shopper's photo; the final image keeps this resolution
 const pad = (n: number) => String(n).padStart(2, '0');
 
 function hexDist(a: string, b: string) {
@@ -66,10 +67,63 @@ async function garmentImage(p: TryProduct, color: string | null, hex: string): P
 
 const friendly = (e: unknown) => {
   const m = e instanceof Error ? e.message : String(e);
-  if (/quota|exceeded|ZeroGPU|limit/i.test(m)) return 'You’ve used this device’s free try-ons for now. The service is a free AI demo with a daily allowance; please try again later.';
-  if (/abort/i.test(m)) return 'That took too long. The free try-on service is busy; please try again in a minute.';
-  return 'The free try-on service is busy right now. Please try again in a minute.';
+  if (/quota|exceeded|ZeroGPU|limit/i.test(m)) return 'You’ve reached the try-on limit for now. Please try again a little later.';
+  if (/abort/i.test(m)) return 'That took longer than it should. Please try again in a minute.';
+  return 'Our AI stylist is busy right now. Please try again in a minute.';
 };
+
+const canvasOf = (w: number, h: number) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+const toBlob = (c: HTMLCanvasElement, type = 'image/jpeg', q = 0.92) => new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('encode'))), type, q));
+
+/** Photo and mask padded to 3:4 at the try-on model's size (768 × 1024). */
+async function prepare(photo: HTMLCanvasElement, mask: TryOnMask) {
+  const W = photo.width, H = photo.height, { tw, th, ox, oy } = padTo34(W, H), s = 768 / tw;
+  const person = canvasOf(768, 1024), pg = person.getContext('2d')!;
+  const edge = photo.getContext('2d')!.getImageData(0, 0, W, 1).data;
+  let r = 0, g = 0, b = 0;
+  for (let i = 0; i < edge.length; i += 4) { r += edge[i]; g += edge[i + 1]; b += edge[i + 2]; }
+  pg.fillStyle = `rgb(${(r / W) | 0},${(g / W) | 0},${(b / W) | 0})`; pg.fillRect(0, 0, 768, 1024);
+  pg.drawImage(photo, ox * s, oy * s, W * s, H * s);
+  const mfull = canvasOf(W, H), mg = mfull.getContext('2d')!, id = mg.createImageData(W, H);
+  for (let i = 0; i < W * H; i++) { const v = mask.data[i] > 0.5 ? 255 : 0; id.data[i * 4] = id.data[i * 4 + 1] = id.data[i * 4 + 2] = v; id.data[i * 4 + 3] = 255; }
+  mg.putImageData(id, 0, 0);
+  const m = canvasOf(768, 1024), mc = m.getContext('2d')!;
+  mc.fillStyle = '#000'; mc.fillRect(0, 0, 768, 1024);
+  mc.imageSmoothingEnabled = false;
+  mc.drawImage(mfull, ox * s, oy * s, W * s, H * s);
+  return { person: await toBlob(person), mask: await toBlob(m, 'image/png'), crop: { x: ox * s, y: oy * (1024 / th), w: W * s, h: H * (1024 / th) } };
+}
+
+/** Put the generated garment into the original photo, only inside the (feathered) mask. */
+async function composite(photo: HTMLCanvasElement, mask: TryOnMask, out: Blob, crop: { x: number; y: number; w: number; h: number }) {
+  const W = photo.width, H = photo.height;
+  const bmp = await createImageBitmap(out);
+  const sx = bmp.width / 768, sy = bmp.height / 1024;
+  const rc = canvasOf(W, H), rg = rc.getContext('2d')!;
+  rg.drawImage(bmp, crop.x * sx, crop.y * sy, crop.w * sx, crop.h * sy, 0, 0, W, H);
+  // Feather the mask edge a little so the new fabric meets the original photo softly.
+  const a = mask.data, f = new Float32Array(a.length), r = Math.max(1, Math.round(W * 0.003));
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    let acc = 0, n = 0;
+    for (let d = -r; d <= r; d += Math.max(1, r >> 1)) { const xx = Math.min(W - 1, Math.max(0, x + d)); acc += a[y * W + xx]; n++; }
+    f[y * W + x] = acc / n;
+  }
+  const g = new Float32Array(a.length);
+  for (let x = 0; x < W; x++) for (let y = 0; y < H; y++) {
+    let acc = 0, n = 0;
+    for (let d = -r; d <= r; d += Math.max(1, r >> 1)) { const yy = Math.min(H - 1, Math.max(0, y + d)); acc += f[yy * W + x]; n++; }
+    g[y * W + x] = acc / n;
+  }
+  const O = photo.getContext('2d')!.getImageData(0, 0, W, H), R = rg.getImageData(0, 0, W, H);
+  for (let i = 0; i < W * H; i++) {
+    const t = g[i];
+    if (t <= 0) continue;
+    for (let c = 0; c < 3; c++) O.data[i * 4 + c] = O.data[i * 4 + c] * (1 - t) + R.data[i * 4 + c] * t;
+  }
+  const fc = canvasOf(W, H);
+  fc.getContext('2d')!.putImageData(O, 0, 0);
+  return toBlob(fc, 'image/jpeg', 0.93);
+}
 
 /**
  * Trial Room: upload a photo, choose a piece, and an AI model re-draws the same photo with the person wearing it.
@@ -109,6 +163,7 @@ export function TrialRoom({ products, samples, initial }: { products: TryProduct
       const bmp = await createImageBitmap(blob, { imageOrientation: 'from-image' });
       const j = await toJpeg(bmp, bmp.width, bmp.height);
       setPhoto({ id, ...j });
+      preloadMaskModels().catch(() => {});   // ready by the time they press Create
     } catch { toast('Could not read that photo'); }
   }
 
@@ -128,8 +183,18 @@ export function TrialRoom({ products, samples, initial }: { products: TryProduct
     const timer = setTimeout(() => abort.current?.abort(), 240_000);
     try {
       const garment = await garmentImage(product, color, hex);
-      const what = `${color ?? ''} ${product.kind === 'tee' ? 'short sleeve t-shirt' : 'crew neck sweatshirt'} with "${titleCase(product.baseName)}" print`.trim();
-      const out = await aiTryOn(photo.blob, garment, what, setBusy, abort.current.signal);
+      const what = `${color ?? ''} ${product.kind === 'tee' ? 'short sleeve crew neck t-shirt' : 'long sleeve crew neck sweatshirt, sleeves down to the wrists'} with "${titleCase(product.baseName)}" print`.trim();
+      // Work out where the garment may be drawn (never over the face or hands), on this device.
+      const bmp = await createImageBitmap(photo.blob);
+      const cv = canvasOf(bmp.width, bmp.height);
+      cv.getContext('2d', { willReadFrequently: true })!.drawImage(bmp, 0, 0);
+      const mask = await buildMask(cv, product.kind).catch(() => null);
+      const prep = mask ? await prepare(cv, mask) : null;
+      const signal = abort.current.signal;
+      const attempt = () => aiTryOn(prep?.person ?? photo.blob, garment, what, prep?.mask ?? null, setBusy, signal);
+      let out: Blob;
+      try { out = await attempt(); } catch (e) { if (signal.aborted) throw e; out = await attempt(); }   // one retry for a hiccup
+      if (mask && prep) out = await composite(cv, mask, out, prep.crop);
       const url = URL.createObjectURL(out);
       cache.current.set(key, url);
       setResult(url);
@@ -201,7 +266,6 @@ export function TrialRoom({ products, samples, initial }: { products: TryProduct
               <span className="ai-scan" aria-hidden />
               <p className="ai-busy-title">{stageText}</p>
               <p className="ai-busy-time">{pad(Math.floor(elapsed / 60))}:{pad(elapsed % 60)}</p>
-              <p className="ai-busy-note">Usually 20–60 seconds on the free AI service.</p>
               <button className="btn btn-light btn-sm" onClick={() => abort.current?.abort()}>Cancel</button>
             </div>
           )}
@@ -248,7 +312,7 @@ export function TrialRoom({ products, samples, initial }: { products: TryProduct
           <p className="eyebrow">Step 3 · See it on you</p>
           <label className="ai-consent">
             <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
-            <span>Send my photo to the AI service to create this image. ENRJI doesn’t store it.</span>
+            <span>Send my photo to our AI partner to create this image. ENRJI doesn’t store it.</span>
           </label>
           <button className="btn btn-gold btn-block" disabled={!photo || !!busy} onClick={generate}>
             {busy ? 'Creating your look…' : result ? 'Create again' : photo ? 'Create my look' : 'Upload a photo first'}
@@ -266,7 +330,7 @@ export function TrialRoom({ products, samples, initial }: { products: TryProduct
           <button className="btn btn-ghost btn-block" onClick={addToBag} disabled={!variants.some((v) => v.available)}>{variants.some((v) => v.available) ? 'Add to bag' : 'Sold out'}</button>
           <Link href={`/products/${product.handle}`} className="link-arrow" style={{ justifySelf: 'center' }}>View product</Link>
         </div>
-        <p className="fine" style={{ textAlign: 'left' }}>Preview feature: images are made by a free AI demo (IDM-VTON on Hugging Face). Printed lettering can come out imperfect; the product photos show the exact artwork.</p>
+        <p className="fine" style={{ textAlign: 'left' }}>Your look is created by AI as a preview. Fit and printed lettering can differ slightly from the real piece; the product photos show the exact artwork.</p>
       </aside>
     </div>
   );
