@@ -4,6 +4,7 @@ import { CartProvider } from '@/components/cart';
 import { CartDrawer } from '@/components/CartDrawer';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { SiteChrome } from '@/components/SiteChrome';
 import { SITE_URL, MULTIBUY, PROMISES } from '@/lib/config';
 
 export const metadata: Metadata = {
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
   robots: process.env.ALLOW_INDEXING === 'true' ? undefined : { index: false, follow: false },
 };
 
-export const viewport: Viewport = { themeColor: '#09090a', width: 'device-width', initialScale: 1 };
+export const viewport: Viewport = { themeColor: '#f5f0e8', width: 'device-width', initialScale: 1 };
 
 const announcements = [
   PROMISES.shipping,
@@ -38,14 +39,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <CartProvider>
-          <div className="announce" aria-label="Offers">
-            <div className="announce-track">
-              {[...announcements, ...announcements].map((a, i) => <span key={i}>{a}</span>)}
+          <SiteChrome>
+            <div className="announce" aria-label="Offers">
+              <div className="announce-track">
+                {[...announcements, ...announcements].map((a, i) => <span key={i}>{a}</span>)}
+              </div>
             </div>
-          </div>
-          <Header />
+            <Header />
+          </SiteChrome>
           <main id="main">{children}</main>
-          <Footer />
+          <SiteChrome><Footer /></SiteChrome>
           <CartDrawer />
         </CartProvider>
       </body>

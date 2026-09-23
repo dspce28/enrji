@@ -34,7 +34,7 @@ export function loadPortrait(handle: string): Promise<PortraitTextures> {
     const u = portraitUrls(handle);
     const one = (url: string, srgb: boolean) => loader!.loadAsync(url).then((t) => {
       t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
-      t.anisotropy = 4;
+      t.anisotropy = 8;
       return t;
     });
     p = Promise.all([one(u.map, true), one(u.depth, false), one(u.mask, false)]).then(([map, depth, mask]) => ({ map, depth, mask }));

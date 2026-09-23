@@ -22,8 +22,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'public', 'store')
 MEAN = np.array([0.485, 0.456, 0.406], np.float32)
 STD = np.array([0.229, 0.224, 0.225], np.float32)
-PHOTO_W = 900       # delivered photo width (3:4 portrait → 1200 high)
-MAP_W = 450         # depth / mask width
+PHOTO_W = 1350      # delivered photo width (3:4 portrait → 1800 high); figures stand near life-size
+MASK_W = 1012       # cut-out mask width: sharp hair and shoulder edges
+MAP_W = 450         # depth width (depth is smooth, so it can stay small)
 
 
 def fetch(url, width=1200):
@@ -89,7 +90,7 @@ def main():
             manifest.pop(handle, None)
             continue
 
-        img = fetch(best[1], 1200)
+        img = fetch(best[1], 2048)
         w, h = img.size
         # Normalise to a 3:4 portrait, cropped around the centre.
         tw, th = (w, round(w * 4 / 3)) if h >= w * 4 / 3 else (round(h * 3 / 4), h)
@@ -99,7 +100,8 @@ def main():
         # Cut-out mask.
         m = seg.run(None, {'input_image': norm(img, (1024, 1024))})[0][0, 0]
         m = 1 / (1 + np.exp(-m))
-        mask = Image.fromarray((m * 255).astype(np.uint8)).resize((MAP_W, round(MAP_W * 4 / 3)), Image.BILINEAR)
+        mask_hi = Image.fromarray((m * 255).astype(np.uint8)).resize((MASK_W, round(MASK_W * 4 / 3)), Image.BICUBIC)
+        mask = mask_hi.resize((MAP_W, round(MAP_W * 4 / 3)), Image.BILINEAR)   # for depth normalisation
 
         # Depth (relative inverse depth: larger = nearer), normalised so the person spans most of the range.
         d = depth.run(None, {'pixel_values': norm(img, (518, 686))})[0][0]
@@ -110,9 +112,9 @@ def main():
         dn = np.clip((d - lo) / max(hi - lo, 1e-6), 0, 1)
         depth_img = Image.fromarray((dn * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.2))
 
-        img.resize((PHOTO_W, round(PHOTO_W * 4 / 3)), Image.LANCZOS).save(os.path.join(OUT, f'{handle}.jpg'), quality=84, optimize=True, progressive=True)
+        img.resize((PHOTO_W, round(PHOTO_W * 4 / 3)), Image.LANCZOS).save(os.path.join(OUT, f'{handle}.jpg'), quality=88, optimize=True, progressive=True)
         depth_img.save(os.path.join(OUT, f'{handle}-depth.png'), optimize=True)
-        mask.save(os.path.join(OUT, f'{handle}-mask.png'), optimize=True)
+        mask_hi.save(os.path.join(OUT, f'{handle}-mask.png'), optimize=True)
 
         ys, xs = np.nonzero(mk > 0.5)
         bbox = [round(float(xs.min()) / mk.shape[1], 3), round(float(ys.min()) / mk.shape[0], 3), round(float(xs.max()) / mk.shape[1], 3), round(float(ys.max()) / mk.shape[0], 3)] if len(xs) else [0, 0, 1, 1]
