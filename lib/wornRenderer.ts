@@ -3,12 +3,15 @@
 import * as THREE from 'three';
 import type { Body, Masks, Pt } from './bodyTracking';
 import type { GarmentKind } from './garment';
+import { SHADE_MAX, type ClothesMap } from './restyle';
 
 /**
  * Composites a garment onto a photo or live camera frame so it looks worn:
  * - the flat garment is warped onto the body (torso between shoulders and hips, sleeves along the arms);
  * - hair, face and hands/forearms stay in front of it (segmentation masks);
  * - the photo's own light and folds are transferred onto the fabric.
+ * With a ClothesMap ("restyle", see restyle.ts) it instead re-dresses the person's own top: the top is
+ * recoloured by its real shading, and the print is laid on with the same shading, clipped to the fabric.
  * Coordinates are image pixels with y pointing down.
  */
 
@@ -42,7 +45,11 @@ const shading = /* glsl */ `
   uniform sampler2D photo;
   uniform vec2 size;
   uniform float realism;
+  uniform sampler2D restyle;
+  uniform float hasRestyle;
   float lum(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+  // Restyle: x = the fabric's real shading (linear light ratio), y = how much of this pixel is the top.
+  vec2 restyleAt(vec2 suv) { vec4 r = texture2D(restyle, suv); return vec2(r.r * ${SHADE_MAX.toFixed(2)}, r.g); }
   vec3 shadeLike(vec3 base, vec2 suv, float onBody) {
     // Relative shading only. Absolute brightness and colour would come from the clothes being
     // replaced (a dark top would turn a white tee grey), so they are not transferred.
@@ -75,6 +82,15 @@ const frag = /* glsl */ `
     vec4 g = texture2D(garment, vUv);
     if (g.a < 0.01) discard;
     vec2 suv = vImg / size;
+    if (hasRestyle > 0.5) {
+      // Print on the person's own top: follows its folds, only where the fabric is.
+      vec2 rs = restyleAt(suv);
+      float a = g.a * smoothstep(0.25, 0.75, rs.y) * opacity;
+      if (a < 0.01) discard;
+      gl_FragColor = vec4(g.rgb * mix(1.0, rs.x, realism), a);
+      #include <colorspace_fragment>
+      return;
+    }
     vec4 m = hasMasks > 0.5 ? texture2D(masks, suv) : vec4(0.0, 0.0, 0.0, 1.0);
     vec3 col = shadeLike(g.rgb, suv, clamp(m.a + m.b, 0.0, 1.0));
 
@@ -125,6 +141,15 @@ const fillFrag = /* glsl */ `
 
   void main() {
     vec2 suv = vImg / size;
+    if (hasRestyle > 0.5) {
+      // Recolour the person's top: new colour, their fabric's real folds and light.
+      vec2 rs = restyleAt(suv);
+      float a = smoothstep(0.08, 0.6, rs.y) * opacity;
+      if (a < 0.01) discard;
+      gl_FragColor = vec4(base * mix(1.0, rs.x, realism), a);
+      #include <colorspace_fragment>
+      return;
+    }
     vec4 m = texture2D(masks, suv);
     float d = min(min(segDist(vImg, upperL.xy, upperL.zw), segDist(vImg, upperR.xy, upperR.zw)),
                   min(segDist(vImg, lowerL.xy, lowerL.zw), segDist(vImg, lowerR.xy, lowerR.zw)));
@@ -151,6 +176,7 @@ export class WornRenderer {
   private fillMat: THREE.ShaderMaterial;
   private fillOn = false;
   private maskTex: THREE.DataTexture | null = null;
+  private restyleTex: THREE.DataTexture | null = null;
   private cols = 44;
   private rows = 48;
   private w = 1;
@@ -187,6 +213,7 @@ export class WornRenderer {
         garment: { value: null }, photo: { value: null }, masks: { value: null },
         size: { value: new THREE.Vector2(1, 1) }, hasMasks: { value: 0 }, realism: { value: 0.85 }, opacity: { value: 1 },
         armL: { value: new THREE.Vector4() }, armR: { value: new THREE.Vector4() }, armRadius: { value: 30 },
+        restyle: { value: null }, hasRestyle: { value: 0 },
       },
     });
     const u = this.material.uniforms;
@@ -194,6 +221,7 @@ export class WornRenderer {
       vertexShader: fillVert, fragmentShader: fillFrag, transparent: true, side: THREE.DoubleSide, depthTest: false,
       uniforms: {
         photo: u.photo, masks: u.masks, size: u.size, realism: u.realism, opacity: u.opacity,
+        restyle: u.restyle, hasRestyle: u.hasRestyle,
         base: { value: new THREE.Color() },
         torso: { value: [new THREE.Vector2(), new THREE.Vector2(), new THREE.Vector2(), new THREE.Vector2()] },
         upperL: { value: new THREE.Vector4() }, upperR: { value: new THREE.Vector4() },
@@ -241,11 +269,11 @@ export class WornRenderer {
   /** Call after redrawing the camera canvas. */
   photoChanged() { if (this.photoTex) this.photoTex.needsUpdate = true; }
 
-  /** `base` is the fabric colour; when given (and not print-only), the wearer's own top is recoloured to it. */
+  /** `base` is the fabric colour the wearer's own top is recoloured to (overlay: around a full garment; restyle: all of it). */
   setGarment(canvas: HTMLCanvasElement, kind: GarmentKind, printOnly: boolean, base?: string) {
     this.kind = kind;
     this.printOnly = printOnly;
-    this.fillOn = !printOnly && !!base;
+    this.fillOn = !!base;   // overlay: recolour around a full garment; restyle: recolour the whole top
     if (base) (this.fillMat.uniforms.base.value as THREE.Color).set(base);
     const old = this.material.uniforms.garment.value as THREE.Texture | null;
     const t = new THREE.CanvasTexture(canvas);
@@ -255,6 +283,26 @@ export class WornRenderer {
     this.material.uniforms.garment.value = t;
     old?.dispose();
   }
+
+  /** Re-dress the person's own top (null: fall back to the garment overlay). */
+  setRestyle(c: ClothesMap | null) {
+    const u = this.material.uniforms;
+    if (!c) { u.hasRestyle.value = 0; return; }
+    if (!this.restyleTex || this.restyleTex.image.width !== c.width || this.restyleTex.image.height !== c.height) {
+      this.restyleTex?.dispose();
+      this.restyleTex = new THREE.DataTexture(c.data, c.width, c.height, THREE.RGBAFormat);
+      this.restyleTex.flipY = false;
+      this.restyleTex.magFilter = THREE.LinearFilter;
+      this.restyleTex.minFilter = THREE.LinearFilter;
+      u.restyle.value = this.restyleTex;
+    } else {
+      (this.restyleTex.image.data as Uint8Array).set(c.data);
+    }
+    this.restyleTex.needsUpdate = true;
+    u.hasRestyle.value = 1;
+  }
+
+  get restyling() { return this.material.uniforms.hasRestyle.value > 0.5; }
 
   setMasks(m: Masks | null) {
     if (!m) { this.material.uniforms.hasMasks.value = 0; return; }
@@ -297,7 +345,9 @@ export class WornRenderer {
     // Hem: along the torso axis, below the hips; width follows hips but never narrower than the chest.
     const hipMid = lerp(hL0, hR0, 0.5);
     const ax = hipMid.x - mid.x, ay = hipMid.y - mid.y;
-    const hemC = { x: mid.x + ax * geo.lengthK * fit.length, y: mid.y + ay * geo.lengthK * fit.length };
+    // Re-dressing the person's own top: the print sits on their top, which ends near the hips.
+    const lengthK = this.material.uniforms.hasRestyle.value > 0.5 ? geo.lengthK * 0.86 : geo.lengthK;
+    const hemC = { x: mid.x + ax * lengthK * fit.length, y: mid.y + ay * lengthK * fit.length };
     const hipHalf = Math.hypot(hR0.x - hL0.x, hR0.y - hL0.y) * 0.5;
     const hemHalf = Math.max(hipHalf * 1.55, seamHalf * ((geo.hemR - geo.hemL) / (SEAM_R.x - SEAM_L.x)));
     const HL = { x: hemC.x - ux * hemHalf, y: hemC.y - uy * hemHalf };
@@ -382,7 +432,7 @@ export class WornRenderer {
     limb(f.upperL.value, f.lowerL.value, sL0, adj(b.elbowL), adj(b.wristL));
     limb(f.upperR.value, f.lowerR.value, sR0, adj(b.elbowR), adj(b.wristR));
     f.sleeveRadius.value = span * (this.kind === 'tee' ? 0.24 : 0.2);
-    this.fillMesh.visible = this.fillOn && u.hasMasks.value > 0.5;
+    this.fillMesh.visible = u.hasRestyle.value > 0.5 ? this.fillOn : this.fillOn && !this.printOnly && u.hasMasks.value > 0.5;
     this.garmentMesh.visible = true;
   }
 
@@ -391,6 +441,7 @@ export class WornRenderer {
   dispose() {
     this.photoTex?.dispose();
     this.maskTex?.dispose();
+    this.restyleTex?.dispose();
     (this.material.uniforms.garment.value as THREE.Texture | null)?.dispose();
     this.material.dispose();
     this.fillMat.dispose();

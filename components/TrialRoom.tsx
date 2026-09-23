@@ -6,6 +6,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { drawGarment, GARMENT_COLORS, type GarmentKind } from '@/lib/garment';
 import { analyseFrame, analyseImage, bodyFromShoulders, loadVision, smoothBody, type Body, type Pt } from '@/lib/bodyTracking';
 import { DEFAULT_FIT, WornRenderer, type Fit } from '@/lib/wornRenderer';
+import { analyseClothes, type ClothesMap } from '@/lib/restyle';
+import type { Masks } from '@/lib/bodyTracking';
 import { cdn, inr, titleCase } from '@/lib/format';
 import { useCart } from './cart';
 
@@ -38,7 +40,10 @@ const MANNEQUIN: Body = {
   confidence: 1,
 };
 
-function drawMannequin() {
+// The mannequin wears a plain grey tee, so it is re-dressed exactly the way a photo is.
+const MANNEQUIN_TEE = new Path2D('M382 402 Q450 446 518 402 L612 424 Q668 470 704 562 L652 606 Q628 568 600 530 Q592 700 590 868 L310 868 Q308 700 300 530 Q272 568 248 606 L196 562 Q232 470 288 424 Z');
+
+function drawMannequin(): { canvas: HTMLCanvasElement; masks: Masks } {
   const c = document.createElement('canvas');
   c.width = 900; c.height = 1200;
   const g = c.getContext('2d')!;
@@ -50,21 +55,40 @@ function drawMannequin() {
   g.fillStyle = skin; g.strokeStyle = skin; g.lineCap = 'round'; g.lineJoin = 'round';
   g.beginPath(); g.ellipse(450, 225, 88, 110, 0, 0, Math.PI * 2); g.fill();
   g.fillRect(410, 300, 80, 110);
-  // Torso
   g.beginPath();
   g.moveTo(275, 430); g.quadraticCurveTo(450, 370, 625, 430);
   g.quadraticCurveTo(640, 620, 580, 800); g.lineTo(600, 1200); g.lineTo(300, 1200); g.lineTo(320, 800);
   g.quadraticCurveTo(260, 620, 275, 430); g.fill();
-  // Arms
   const limb = (pts: Pt[], w: number) => { g.lineWidth = w; g.beginPath(); g.moveTo(pts[0].x, pts[0].y); for (const p of pts.slice(1)) g.lineTo(p.x, p.y); g.stroke(); };
   limb([MANNEQUIN.shoulderL, MANNEQUIN.elbowL, MANNEQUIN.wristL], 70);
   limb([MANNEQUIN.shoulderR, MANNEQUIN.elbowR, MANNEQUIN.wristR], 70);
-  // Soft shading so the light transfer has something to read.
+  // The tee: soft roundness, a few folds, a shadow under the arms.
+  const tee = g.createLinearGradient(290, 0, 610, 0);
+  tee.addColorStop(0, '#8e8b86'); tee.addColorStop(0.35, '#c9c6c0'); tee.addColorStop(0.6, '#cfccc6'); tee.addColorStop(1, '#8a8782');
+  g.fillStyle = tee; g.fill(MANNEQUIN_TEE);
+  g.save(); g.clip(MANNEQUIN_TEE);
+  g.filter = 'blur(10px)';
+  g.strokeStyle = 'rgba(40,36,32,.35)'; g.lineWidth = 14;
+  for (const [a, b, cx, cy] of [[330, 560, 360, 700], [575, 560, 540, 700], [360, 820, 450, 790], [540, 820, 450, 800], [300, 540, 340, 520], [600, 540, 560, 520]]) {
+    g.beginPath(); g.moveTo(a, b); g.quadraticCurveTo(cx, cy, a < 450 ? a + 60 : a - 60, b + 200); g.stroke();
+  }
+  g.fillStyle = 'rgba(255,250,240,.12)'; g.beginPath(); g.ellipse(430, 520, 90, 60, 0, 0, Math.PI * 2); g.fill();
+  g.filter = 'none'; g.restore();
   const shade = g.createLinearGradient(0, 380, 0, 1200);
-  shade.addColorStop(0, 'rgba(255,240,220,.10)'); shade.addColorStop(1, 'rgba(0,0,0,.35)');
+  shade.addColorStop(0, 'rgba(255,240,220,.08)'); shade.addColorStop(1, 'rgba(0,0,0,.3)');
   g.globalCompositeOperation = 'source-atop'; g.fillStyle = shade; g.fillRect(0, 0, 900, 1200);
   g.globalCompositeOperation = 'source-over';
-  return c;
+
+  // Segmentation for the drawing, in the same 256 × 256 layout the scanner produces.
+  const m = document.createElement('canvas');
+  m.width = m.height = 256;
+  const mg = m.getContext('2d', { willReadFrequently: true })!;
+  mg.scale(256 / 900, 256 / 1200);
+  mg.fillStyle = '#f00'; mg.fill(MANNEQUIN_TEE);
+  const px = mg.getImageData(0, 0, 256, 256).data;
+  const data = new Uint8Array(256 * 256 * 4);
+  for (let i = 0; i < 256 * 256; i++) data[i * 4 + 3] = px[i * 4];
+  return { canvas: c, masks: { width: 256, height: 256, data } };
 }
 
 export function TrialRoom({ products, initial }: { products: TryProduct[]; initial?: string }) {
@@ -81,6 +105,7 @@ export function TrialRoom({ products, initial }: { products: TryProduct[]; initi
   const [size, setSize] = useState<string | null>(null);
   const [dims, setDims] = useState({ w: 1, h: 1 });
   const [glFailed, setGlFailed] = useState(false);
+  const [clothes, setClothes] = useState<ClothesMap | null>(null);   // the person's own top, when found
 
   const cvRef = useRef<HTMLCanvasElement>(null);
   const renderer = useRef<WornRenderer | null>(null);
@@ -92,6 +117,8 @@ export function TrialRoom({ products, initial }: { products: TryProduct[]; initi
   const frame = useRef<HTMLCanvasElement | null>(null);
   const loop = useRef(0);
   const live = useRef(false);
+  const masksRef = useRef<Masks | null>(null);
+  const photoRef = useRef<HTMLCanvasElement | null>(null);
 
   const hex = (color && product.colorHex[color]) || (color ? GARMENT_COLORS[color.toLowerCase()] : null) || product.defaultColor;
   const artwork = (color && product.artwork[color]) || product.artwork['*'] || null;
@@ -126,12 +153,18 @@ export function TrialRoom({ products, initial }: { products: TryProduct[]; initi
         try { await art.decode(); } catch { art = null; }
       }
       if (cancelled || !renderer.current) return;
-      const tex = drawGarment({ kind: product.kind, color: hex, ink: product.ink, slogan: product.baseName, artwork: art }, { scale: 2, shading: false, bodyless: mode === 'print' });
-      renderer.current.setGarment(tex, product.kind, mode === 'print', hex);
+      if (clothes) {
+        // Re-dress the person's top: print only; the top itself is recoloured (or keeps its own colour).
+        const tex = drawGarment({ kind: product.kind, color: hex, ink: product.ink, slogan: product.baseName, artwork: art }, { scale: 2, shading: false, bodyless: true });
+        renderer.current.setGarment(tex, product.kind, true, mode === 'print' ? `rgb(${clothes.fabric.join(',')})` : hex);
+      } else {
+        const tex = drawGarment({ kind: product.kind, color: hex, ink: product.ink, slogan: product.baseName, artwork: art }, { scale: 2, shading: false, bodyless: mode === 'print' });
+        renderer.current.setGarment(tex, product.kind, mode === 'print', hex);
+      }
       redraw();
     })();
     return () => { cancelled = true; };
-  }, [product, hex, artwork, mode, redraw]);
+  }, [product, hex, artwork, mode, clothes, redraw]);
 
   useEffect(() => { renderer.current?.setLook(realism, 1); redraw(); }, [realism, redraw]);
   useEffect(() => { redraw(); }, [fit, redraw]);
@@ -142,10 +175,25 @@ export function TrialRoom({ products, initial }: { products: TryProduct[]; initi
     if (!r) return;
     r.setPhoto(c, c.width, c.height);
     r.setMasks(null);
+    r.setRestyle(null);
+    masksRef.current = null;
+    photoRef.current = c;
+    setClothes(null);
     setDims({ w: c.width, h: c.height });
     setFit(DEFAULT_FIT);
     setPicking(null);
     setView('on-you');
+  }, []);
+
+  /** Find the person's top and build the restyle map; falls back to the garment overlay when there isn't one. */
+  const restyleFrom = useCallback((src: HTMLCanvasElement, masks: Masks | null, b: Body | null, maxSide = 512) => {
+    const r = renderer.current;
+    if (!r) return null;
+    const cm = masks && b ? analyseClothes(src, masks, b, maxSide) : null;
+    const ok = cm && cm.coverage > 0.3 ? cm : null;
+    r.setRestyle(ok);
+    setClothes((prev) => (!!prev === !!ok ? (ok ?? prev) : ok));
+    return ok;
   }, []);
 
   const guessBody = (w: number, h: number) => bodyFromShoulders({ x: w * 0.3, y: h * 0.33 }, { x: w * 0.7, y: h * 0.33 });
@@ -157,9 +205,13 @@ export function TrialRoom({ products, initial }: { products: TryProduct[]; initi
       setStatus({ kind: 'busy', text: 'Finding your shoulders, arms and clothes…' });
       const { body: b, masks } = await analyseImage(c, c.width, c.height);
       renderer.current?.setMasks(masks);
+      masksRef.current = masks;
       if (b && b.confidence > 0.3) {
         body.current = b;
-        setStatus({ kind: 'ok', text: 'Fitted to your body. Drag or pinch to fine-tune.' });
+        const cm = restyleFrom(c, masks, b);
+        setStatus(cm
+          ? { kind: 'ok', text: 'Your top is re-dressed in this piece. Drag or pinch to move the print.' }
+          : { kind: 'warn', text: 'Couldn’t find a plain top, so the piece is laid over you. A tee or sweatshirt works best.' });
       } else {
         body.current = guessBody(c.width, c.height);
         setStatus({ kind: 'warn', text: 'Couldn’t find your shoulders. Tap “Place by shoulders”.' });
@@ -200,9 +252,12 @@ export function TrialRoom({ products, initial }: { products: TryProduct[]; initi
 
   function mannequin() {
     stopCamera();
-    const c = drawMannequin();
+    const { canvas: c, masks } = drawMannequin();
     applyPhoto(c);
     body.current = MANNEQUIN;
+    masksRef.current = masks;
+    renderer.current?.setMasks(masks);
+    restyleFrom(c, masks, MANNEQUIN);
     setSource('mannequin');
     setStatus({ kind: 'ok', text: 'Mannequin ready. Pick any design, or switch to the 360° view.' });
     redraw();
@@ -244,12 +299,13 @@ export function TrialRoom({ products, initial }: { products: TryProduct[]; initi
         const ts = Math.max(lastTs + 1, performance.now());
         lastTs = ts;
         analyseFrame(c, c.width, c.height, ts, n++ % 2 === 0).then(({ body: b, masks }) => {
-          if (masks) renderer.current?.setMasks(masks);
+          if (masks) { renderer.current?.setMasks(masks); masksRef.current = masks; }
           if (b && b.confidence > 0.4) {
             const first = !body.current;
             body.current = smoothBody(body.current, b);
             if (first) setStatus({ kind: 'ok', text: 'Tracking you live. Turn a little, raise an arm.' });
           }
+          if (masks && body.current) restyleFrom(c, masks, body.current, 256);
         }).catch(() => {}).finally(() => { busy = false; });
       }
       redraw();
@@ -275,8 +331,8 @@ export function TrialRoom({ products, initial }: { products: TryProduct[]; initi
     const b = body.current;
     applyPhoto(c);
     setSource('photo');
-    if (b) { body.current = b; setStatus({ kind: 'ok', text: 'Captured. Fine-tune by dragging, or save the image.' }); redraw(); }
-    else scan(c);
+    body.current = b;
+    scan(c);
   }
 
   function reset() {
@@ -304,6 +360,7 @@ export function TrialRoom({ products, initial }: { products: TryProduct[]; initi
       if (pts.length < 2) { setPicking(pts); setStatus({ kind: 'warn', text: 'Now tap your other shoulder.' }); return; }
       setPicking(null);
       body.current = bodyFromShoulders(pts[0], pts[1]);
+      if (photoRef.current) restyleFrom(photoRef.current, masksRef.current, body.current);
       setFit(DEFAULT_FIT);
       setStatus({ kind: 'ok', text: 'Placed. Drag, pinch or use the sliders to fine-tune.' });
       redraw();
@@ -459,13 +516,25 @@ export function TrialRoom({ products, initial }: { products: TryProduct[]; initi
             <div>
               <div className="opt-label">Wear it as</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button className="pill" aria-pressed={mode === 'full'} onClick={() => setMode('full')}>Full {product.kind}</button>
-                <button className="pill" aria-pressed={mode === 'print'} onClick={() => setMode('print')}>Print on my clothes</button>
+                {clothes ? (
+                  <>
+                    <button className="pill" aria-pressed={mode === 'full'} onClick={() => setMode('full')}>In {color ?? 'its colour'}</button>
+                    <button className="pill" aria-pressed={mode === 'print'} onClick={() => setMode('print')}>Keep my colour</button>
+                  </>
+                ) : (
+                  <>
+                    <button className="pill" aria-pressed={mode === 'full'} onClick={() => setMode('full')}>Full {product.kind}</button>
+                    <button className="pill" aria-pressed={mode === 'print'} onClick={() => setMode('print')}>Print on my clothes</button>
+                  </>
+                )}
               </div>
+              <p className="fine" style={{ textAlign: 'left', marginTop: 10 }}>
+                {clothes ? 'We re-dress the top you’re wearing, keeping its folds and light. The cut stays yours: a plain tee or sweatshirt looks most like the real thing.' : 'Wear a plain tee or sweatshirt in your photo and we’ll re-dress it instead of laying the piece over you.'}
+              </p>
             </div>
             <div className="sliders">
               <label>Size<input type="range" min={60} max={160} value={Math.round(fit.scale * 100)} disabled={!hasSource} onChange={(e) => setFit({ ...fit, scale: +e.target.value / 100 })} /><output>{Math.round(fit.scale * 100)}%</output></label>
-              <label>Length<input type="range" min={75} max={130} value={Math.round(fit.length * 100)} disabled={!hasSource || mode === 'print'} onChange={(e) => setFit({ ...fit, length: +e.target.value / 100 })} /><output>{Math.round(fit.length * 100)}%</output></label>
+              <label>Length<input type="range" min={75} max={130} value={Math.round(fit.length * 100)} disabled={!hasSource || mode === 'print' || !!clothes} onChange={(e) => setFit({ ...fit, length: +e.target.value / 100 })} /><output>{Math.round(fit.length * 100)}%</output></label>
               <label>Realism<input type="range" min={0} max={100} value={Math.round(realism * 100)} onChange={(e) => setRealism(+e.target.value / 100)} /><output>{Math.round(realism * 100)}%</output></label>
             </div>
           </>
