@@ -1,10 +1,17 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import type { Img } from '@/lib/catalogue';
 import { cdn, srcSet } from '@/lib/format';
+import type { GarmentKind } from '@/lib/garment';
+import { resolveLook, type GarmentLook } from '@/lib/look';
 
-export function Gallery({ images, color, title }: { images: Img[]; color: string | null; title: string }) {
+const Garment360 = dynamic(() => import('./Garment360'), { ssr: false, loading: () => <div className="g360"><div className="g360-loading"><span /></div></div> });
+
+export function Gallery({ images, color, title, kind, slogan, look }: { images: Img[]; color: string | null; title: string; kind: GarmentKind; slogan: string; look: GarmentLook }) {
+  const [view, setView] = useState<'photos' | '360'>('photos');
+  const resolved = resolveLook(look, color);
   // Colour-specific shots first when a colour is selected, then everything else.
   const ordered = color
     ? [...images.filter((i) => i.colors.includes(color)), ...images.filter((i) => !i.colors.includes(color))]
@@ -24,6 +31,16 @@ export function Gallery({ images, color, title }: { images: Img[]; color: string
           </button>
         ))}
       </div>
+      <div style={{ position: 'relative' }}>
+      <div className="view-toggle" role="group" aria-label="View">
+        <button aria-pressed={view === 'photos'} onClick={() => setView('photos')}>Photos</button>
+        <button aria-pressed={view === '360'} onClick={() => setView('360')}>360° view</button>
+      </div>
+      {view === '360' ? (
+        <div className="gallery-main" style={{ cursor: 'default' }}>
+          <Garment360 kind={kind} color={resolved.color} ink={look.ink} slogan={slogan} artwork={resolved.artwork} />
+        </div>
+      ) : (
       <div
         className={`gallery-main${zoom ? ' zoom' : ''}`}
         onClick={(e) => {
@@ -47,6 +64,8 @@ export function Gallery({ images, color, title }: { images: Img[]; color: string
           style={zoom ? { transformOrigin: `${zoom.x}% ${zoom.y}%` } : undefined}
           fetchPriority={idx === 0 ? 'high' : undefined}
         />
+      </div>
+      )}
       </div>
     </div>
   );

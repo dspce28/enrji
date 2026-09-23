@@ -1,10 +1,15 @@
 'use client';
 
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { drawGarment, GARMENT_BOX, PRINT_BOX, GARMENT_COLORS, type GarmentKind } from '@/lib/garment';
+import { drawGarment, GARMENT_COLORS, type GarmentKind } from '@/lib/garment';
+import { analyseFrame, analyseImage, bodyFromShoulders, loadVision, smoothBody, type Body, type Pt } from '@/lib/bodyTracking';
+import { DEFAULT_FIT, WornRenderer, type Fit } from '@/lib/wornRenderer';
 import { cdn, inr, titleCase } from '@/lib/format';
 import { useCart } from './cart';
+
+const Garment360 = dynamic(() => import('./Garment360'), { ssr: false, loading: () => <div className="g360"><div className="g360-loading"><span /></div></div> });
 
 export interface TryProduct {
   handle: string;
@@ -20,283 +25,326 @@ export interface TryProduct {
   variants: { id: number; size: string; color: string | null; available: boolean; price: number; compareAt: number | null; image: string | null }[];
 }
 
-// Overlay geometry in overlay units: w/h image size, span = shoulder seam distance, off = shoulder line → centre.
-const G_FULL = { w: GARMENT_BOX.w, h: GARMENT_BOX.h, span: GARMENT_BOX.span, off: GARMENT_BOX.h / 2 - GARMENT_BOX.shoulderY };
-const G_PRINT = { w: PRINT_BOX.w, h: PRINT_BOX.h, span: GARMENT_BOX.span, off: PRINT_BOX.cy - GARMENT_BOX.shoulderY };
-type Geom = typeof G_FULL;
-type T = { cx: number; cy: number; w: number; rot: number };
-type Pt = { x: number; y: number };
-const MAX_SIDE = 1400;
+type Source = 'none' | 'photo' | 'camera' | 'mannequin';
+type Status = { kind: 'idle' | 'busy' | 'ok' | 'warn'; text: string };
+const MAX_SIDE = 1280;
+
+// Mannequin: drawn at 900 × 1200 with a known pose.
+const MANNEQUIN: Body = {
+  shoulderL: { x: 290, y: 425 }, shoulderR: { x: 610, y: 425 },
+  elbowL: { x: 200, y: 700 }, elbowR: { x: 700, y: 700 },
+  wristL: { x: 165, y: 930 }, wristR: { x: 735, y: 930 },
+  hipL: { x: 340, y: 800 }, hipR: { x: 560, y: 800 },
+  confidence: 1,
+};
+
+function drawMannequin() {
+  const c = document.createElement('canvas');
+  c.width = 900; c.height = 1200;
+  const g = c.getContext('2d')!;
+  const bg = g.createRadialGradient(450, 420, 60, 450, 560, 860);
+  bg.addColorStop(0, '#2c2419'); bg.addColorStop(1, '#09090a');
+  g.fillStyle = bg; g.fillRect(0, 0, 900, 1200);
+  const skin = g.createLinearGradient(160, 0, 740, 0);
+  skin.addColorStop(0, '#5e5040'); skin.addColorStop(0.5, '#b89f82'); skin.addColorStop(1, '#5e5040');
+  g.fillStyle = skin; g.strokeStyle = skin; g.lineCap = 'round'; g.lineJoin = 'round';
+  g.beginPath(); g.ellipse(450, 225, 88, 110, 0, 0, Math.PI * 2); g.fill();
+  g.fillRect(410, 300, 80, 110);
+  // Torso
+  g.beginPath();
+  g.moveTo(275, 430); g.quadraticCurveTo(450, 370, 625, 430);
+  g.quadraticCurveTo(640, 620, 580, 800); g.lineTo(600, 1200); g.lineTo(300, 1200); g.lineTo(320, 800);
+  g.quadraticCurveTo(260, 620, 275, 430); g.fill();
+  // Arms
+  const limb = (pts: Pt[], w: number) => { g.lineWidth = w; g.beginPath(); g.moveTo(pts[0].x, pts[0].y); for (const p of pts.slice(1)) g.lineTo(p.x, p.y); g.stroke(); };
+  limb([MANNEQUIN.shoulderL, MANNEQUIN.elbowL, MANNEQUIN.wristL], 70);
+  limb([MANNEQUIN.shoulderR, MANNEQUIN.elbowR, MANNEQUIN.wristR], 70);
+  // Soft shading so the light transfer has something to read.
+  const shade = g.createLinearGradient(0, 380, 0, 1200);
+  shade.addColorStop(0, 'rgba(255,240,220,.10)'); shade.addColorStop(1, 'rgba(0,0,0,.35)');
+  g.globalCompositeOperation = 'source-atop'; g.fillStyle = shade; g.fillRect(0, 0, 900, 1200);
+  g.globalCompositeOperation = 'source-over';
+  return c;
+}
 
 export function TrialRoom({ products, initial }: { products: TryProduct[]; initial?: string }) {
   const { add, setOpen, toast } = useCart();
   const [product, setProduct] = useState<TryProduct>(() => products.find((p) => p.handle === initial) ?? products[0]);
   const [color, setColor] = useState<string | null>(product.colors[0] ?? null);
+  const [view, setView] = useState<'on-you' | '360'>('on-you');
   const [mode, setMode] = useState<'full' | 'print'>('full');
-  const [blend, setBlend] = useState(true);
-  const [opacity, setOpacity] = useState(0.96);
-  const [hasPhoto, setHasPhoto] = useState(false);
-  const [camera, setCamera] = useState(false);
+  const [source, setSource] = useState<Source>('none');
+  const [status, setStatus] = useState<Status>({ kind: 'idle', text: '' });
+  const [fit, setFit] = useState<Fit>(DEFAULT_FIT);
+  const [realism, setRealism] = useState(0.85);
   const [picking, setPicking] = useState<Pt[] | null>(null);
-  const [hint, setHint] = useState('');
   const [size, setSize] = useState<string | null>(null);
-  const [sliders, setSliders] = useState({ scale: 60, rot: 0 });
+  const [dims, setDims] = useState({ w: 1, h: 1 });
+  const [glFailed, setGlFailed] = useState(false);
 
   const cvRef = useRef<HTMLCanvasElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const photo = useRef<CanvasImageSource | null>(null);
-  const overlay = useRef<HTMLCanvasElement | null>(null);
-  const geom = useRef<Geom>(G_FULL);
-  const t = useRef<T | null>(null);
+  const renderer = useRef<WornRenderer | null>(null);
+  const body = useRef<Body | null>(null);
+  const fitRef = useRef(fit);
+  fitRef.current = fit;
   const stream = useRef<MediaStream | null>(null);
-  const off = useRef<HTMLCanvasElement | null>(null);
-  const pickRef = useRef<Pt[] | null>(null);
-  pickRef.current = picking;
-  const view = useRef({ blend, opacity });
-  view.current = { blend, opacity };
+  const video = useRef<HTMLVideoElement | null>(null);
+  const frame = useRef<HTMLCanvasElement | null>(null);
+  const loop = useRef(0);
+  const live = useRef(false);
 
-  // ---------- drawing ----------
-  const draw = useCallback(() => {
-    const cv = cvRef.current;
-    if (!cv || !photo.current) return;
-    const ctx = cv.getContext('2d')!;
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 1;
-    ctx.clearRect(0, 0, cv.width, cv.height);
-    ctx.drawImage(photo.current, 0, 0, cv.width, cv.height);
-    const o = overlay.current, tr = t.current;
-    if (o && tr) {
-      off.current ??= document.createElement('canvas');
-      const oc = off.current;
-      if (oc.width !== cv.width || oc.height !== cv.height) { oc.width = cv.width; oc.height = cv.height; }
-      const g = oc.getContext('2d')!;
-      const place = () => {
-        const h = tr.w * (geom.current.h / geom.current.w);
-        g.save(); g.translate(tr.cx, tr.cy); g.rotate(tr.rot); g.drawImage(o, -tr.w / 2, -h / 2, tr.w, h); g.restore();
-      };
-      g.globalCompositeOperation = 'source-over';
-      g.clearRect(0, 0, oc.width, oc.height);
-      place();
-      if (view.current.blend) {
-        // Fold light and shadow from the photo into the garment, then clip to the garment again.
-        g.globalCompositeOperation = 'soft-light';
-        g.filter = 'grayscale(1) contrast(1.25)';
-        g.drawImage(photo.current, 0, 0, cv.width, cv.height);
-        g.filter = 'none';
-        g.globalCompositeOperation = 'destination-in';
-        place();
-      }
-      ctx.globalAlpha = view.current.opacity;
-      ctx.drawImage(oc, 0, 0);
-      ctx.globalAlpha = 1;
-    }
-    for (const p of pickRef.current ?? []) {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, Math.max(7, cv.width / 110), 0, Math.PI * 2);
-      ctx.fillStyle = '#f2d38c'; ctx.shadowColor = '#d9ab52'; ctx.shadowBlur = 18; ctx.fill(); ctx.shadowBlur = 0;
-    }
+  const hex = (color && product.colorHex[color]) || (color ? GARMENT_COLORS[color.toLowerCase()] : null) || product.defaultColor;
+  const artwork = (color && product.artwork[color]) || product.artwork['*'] || null;
+
+  const redraw = useCallback(() => {
+    const r = renderer.current;
+    if (!r) return;
+    r.setBody(body.current, fitRef.current);
+    r.render();
   }, []);
 
-  const syncSliders = useCallback(() => {
-    const cv = cvRef.current, tr = t.current;
-    if (!cv || !tr) return;
-    setSliders({ scale: Math.round((tr.w / cv.width) * 100), rot: Math.round((tr.rot * 180) / Math.PI) });
+  // ---------- renderer ----------
+  useEffect(() => {
+    try { renderer.current = new WornRenderer(cvRef.current!); } catch { setGlFailed(true); }
+    return () => {
+      cancelAnimationFrame(loop.current);
+      stream.current?.getTracks().forEach((t) => t.stop());
+      renderer.current?.dispose();
+      renderer.current = null;
+    };
   }, []);
 
-  /** Swap overlay geometry, keeping the shoulders where the shopper placed them. */
-  const reanchor = (from: Geom, to: Geom) => {
-    const tr = t.current;
-    if (!tr || from === to) return;
-    const k = tr.w / from.w;
-    const midX = tr.cx + Math.sin(tr.rot) * from.off * k, midY = tr.cy - Math.cos(tr.rot) * from.off * k;
-    const k2 = (from.span * k) / to.span;
-    t.current = { rot: tr.rot, w: to.w * k2, cx: midX - Math.sin(tr.rot) * to.off * k2, cy: midY + Math.cos(tr.rot) * to.off * k2 };
-  };
-
-  // Rebuild the overlay whenever the product, colour or mode changes.
+  // Garment texture: rebuilt when the product, colour or mode changes.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       await document.fonts?.ready;
-      let artwork: HTMLImageElement | null = null;
-      const src = (color && product.artwork[color]) || product.artwork['*'];
-      if (src) {
-        artwork = new Image();
-        artwork.src = src;
-        try { await artwork.decode(); } catch { artwork = null; }
+      let art: HTMLImageElement | null = null;
+      if (artwork) {
+        art = new Image();
+        art.src = artwork;
+        try { await art.decode(); } catch { art = null; }
       }
-      if (cancelled) return;
-      const hex = (color && product.colorHex[color]) || (color ? GARMENT_COLORS[color.toLowerCase()] : null) || product.defaultColor;
-      overlay.current = drawGarment({ kind: product.kind, color: hex, ink: product.ink, slogan: product.baseName, artwork }, 2.5, mode === 'print');
-      const next = mode === 'print' ? G_PRINT : G_FULL;
-      reanchor(geom.current, next);
-      geom.current = next;
-      syncSliders();
-      draw();
+      if (cancelled || !renderer.current) return;
+      const tex = drawGarment({ kind: product.kind, color: hex, ink: product.ink, slogan: product.baseName, artwork: art }, { scale: 2, shading: false, bodyless: mode === 'print' });
+      renderer.current.setGarment(tex, product.kind, mode === 'print', hex);
+      redraw();
     })();
     return () => { cancelled = true; };
-  }, [product, color, mode, draw, syncSliders]);
+  }, [product, hex, artwork, mode, redraw]);
 
-  useEffect(() => { draw(); }, [blend, opacity, picking, draw]);
+  useEffect(() => { renderer.current?.setLook(realism, 1); redraw(); }, [realism, redraw]);
+  useEffect(() => { redraw(); }, [fit, redraw]);
 
-  // ---------- photo sources ----------
-  const setPhoto = useCallback((src: CanvasImageSource, w: number, h: number, shoulders?: [Pt, Pt]) => {
-    const cv = cvRef.current!;
-    const k = Math.min(1, MAX_SIDE / Math.max(w, h));
-    cv.width = Math.round(w * k);
-    cv.height = Math.round(h * k);
-    photo.current = src;
-    const full = geom.current === G_FULL;
-    t.current = { cx: cv.width / 2, cy: cv.height * (full ? 0.64 : 0.6), w: cv.width * (full ? 0.62 : 0.3), rot: 0 };
-    setHasPhoto(true);
+  // ---------- sources ----------
+  const applyPhoto = useCallback((c: HTMLCanvasElement) => {
+    const r = renderer.current;
+    if (!r) return;
+    r.setPhoto(c, c.width, c.height);
+    r.setMasks(null);
+    setDims({ w: c.width, h: c.height });
+    setFit(DEFAULT_FIT);
     setPicking(null);
-    setHint('Drag to move · pinch or scroll to resize · or use Fit to shoulders');
-    if (shoulders) fit(shoulders[0], shoulders[1]); else { syncSliders(); draw(); }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draw, syncSliders]);
+    setView('on-you');
+  }, []);
 
-  function fit(a: Pt, b: Pt) {
-    const [l, r] = a.x <= b.x ? [a, b] : [b, a];
-    const span = Math.hypot(r.x - l.x, r.y - l.y);
-    const rot = Math.atan2(r.y - l.y, r.x - l.x);
-    const g = geom.current;
-    const unit = span / g.span;
-    const mid = { x: (l.x + r.x) / 2, y: (l.y + r.y) / 2 };
-    t.current = { cx: mid.x - Math.sin(rot) * g.off * unit, cy: mid.y + Math.cos(rot) * g.off * unit, w: g.w * unit, rot };
-    syncSliders();
-    draw();
+  const guessBody = (w: number, h: number) => bodyFromShoulders({ x: w * 0.3, y: h * 0.33 }, { x: w * 0.7, y: h * 0.33 });
+
+  async function scan(c: HTMLCanvasElement) {
+    setStatus({ kind: 'busy', text: 'Loading the body scanner (first time only)…' });
+    try {
+      await loadVision();
+      setStatus({ kind: 'busy', text: 'Finding your shoulders, arms and clothes…' });
+      const { body: b, masks } = await analyseImage(c, c.width, c.height);
+      renderer.current?.setMasks(masks);
+      if (b && b.confidence > 0.3) {
+        body.current = b;
+        setStatus({ kind: 'ok', text: 'Fitted to your body. Drag or pinch to fine-tune.' });
+      } else {
+        body.current = guessBody(c.width, c.height);
+        setStatus({ kind: 'warn', text: 'Couldn’t find your shoulders. Tap “Place by shoulders”.' });
+      }
+    } catch {
+      body.current = guessBody(c.width, c.height);
+      setStatus({ kind: 'warn', text: 'Scanner unavailable on this device. Tap “Place by shoulders”.' });
+    }
+    redraw();
   }
 
   async function fromFile(file?: File) {
     if (!file) return;
     if (!file.type.startsWith('image/')) return toast('Please choose a photo');
     if (file.size > 25e6) return toast('That photo is too large (max 25 MB)');
+    let src: ImageBitmap | HTMLImageElement;
     try {
-      const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
-      setPhoto(bmp, bmp.width, bmp.height);
+      src = await createImageBitmap(file, { imageOrientation: 'from-image' });
     } catch {
       const url = URL.createObjectURL(file);
       const img = new Image();
       img.src = url;
-      try { await img.decode(); setPhoto(img, img.naturalWidth, img.naturalHeight); } catch { toast('Could not read that photo'); }
-      finally { setTimeout(() => URL.revokeObjectURL(url), 5000); }
+      try { await img.decode(); } catch { URL.revokeObjectURL(url); return toast('Could not read that photo'); }
+      src = img;
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
     }
+    const w0 = 'naturalWidth' in src ? src.naturalWidth : src.width, h0 = 'naturalHeight' in src ? src.naturalHeight : src.height;
+    const k = Math.min(1, MAX_SIDE / Math.max(w0, h0));
+    const c = document.createElement('canvas');
+    c.width = Math.round(w0 * k); c.height = Math.round(h0 * k);
+    c.getContext('2d')!.drawImage(src, 0, 0, c.width, c.height);
+    stopCamera();
+    body.current = null;
+    applyPhoto(c);
+    setSource('photo');
+    await scan(c);
+  }
+
+  function mannequin() {
+    stopCamera();
+    const c = drawMannequin();
+    applyPhoto(c);
+    body.current = MANNEQUIN;
+    setSource('mannequin');
+    setStatus({ kind: 'ok', text: 'Mannequin ready. Pick any design, or switch to the 360° view.' });
+    redraw();
   }
 
   async function startCamera() {
     if (!navigator.mediaDevices?.getUserMedia) return toast('Camera is not available in this browser');
     try {
-      stream.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 } }, audio: false });
+      stream.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 960 }, height: { ideal: 1280 } }, audio: false });
     } catch { return toast('Camera permission was denied'); }
-    setCamera(true);
-    requestAnimationFrame(async () => {
-      if (!videoRef.current) return;
-      videoRef.current.srcObject = stream.current;
-      await videoRef.current.play().catch(() => {});
-    });
-  }
-  function stopCamera() {
-    stream.current?.getTracks().forEach((tr) => tr.stop());
-    stream.current = null;
-    setCamera(false);
-  }
-  function snap() {
-    const v = videoRef.current!;
+    const v = document.createElement('video');
+    v.playsInline = true; v.muted = true;
+    v.srcObject = stream.current;
+    await v.play().catch(() => {});
+    if (!v.videoWidth) await new Promise((res) => v.addEventListener('loadedmetadata', res, { once: true }));
+    video.current = v;
     const c = document.createElement('canvas');
     c.width = v.videoWidth; c.height = v.videoHeight;
-    const g = c.getContext('2d')!;
-    g.translate(c.width, 0); g.scale(-1, 1);
-    g.drawImage(v, 0, 0);
-    stopCamera();
-    setPhoto(c, c.width, c.height);
-  }
-  useEffect(() => () => stopCamera(), []);
+    frame.current = c;
+    body.current = null;
+    applyPhoto(c);
+    setSource('camera');
+    setStatus({ kind: 'busy', text: 'Loading the body scanner (first time only)…' });
 
-  function mannequin() {
-    const c = document.createElement('canvas');
-    c.width = 900; c.height = 1100;
+    let visionReady = false, busy = false, n = 0, lastTs = 0;
+    loadVision().then(() => { visionReady = true; setStatus({ kind: 'busy', text: 'Step back until your shoulders and hips are in view.' }); })
+      .catch(() => setStatus({ kind: 'warn', text: 'Scanner unavailable. Capture a frame and place it by shoulders.' }));
+    live.current = true;
     const g = c.getContext('2d')!;
-    const bg = g.createRadialGradient(450, 380, 50, 450, 500, 800);
-    bg.addColorStop(0, '#2a2319'); bg.addColorStop(1, '#09090a');
-    g.fillStyle = bg; g.fillRect(0, 0, 900, 1100);
-    const skin = g.createLinearGradient(250, 0, 650, 0);
-    skin.addColorStop(0, '#6f604e'); skin.addColorStop(0.5, '#b89f82'); skin.addColorStop(1, '#6f604e');
-    g.fillStyle = skin;
-    g.beginPath(); g.ellipse(450, 190, 86, 106, 0, 0, Math.PI * 2); g.fill();
-    g.fillRect(412, 270, 76, 90);
-    g.beginPath();
-    g.moveTo(250, 400); g.quadraticCurveTo(450, 330, 650, 400); g.quadraticCurveTo(720, 430, 745, 560); g.lineTo(770, 900); g.lineTo(705, 910); g.lineTo(660, 600);
-    g.lineTo(650, 1100); g.lineTo(250, 1100); g.lineTo(240, 600); g.lineTo(195, 910); g.lineTo(130, 900); g.lineTo(155, 560); g.quadraticCurveTo(180, 430, 250, 400);
-    g.fill();
-    setPhoto(c, 900, 1100, [{ x: 262, y: 400 }, { x: 638, y: 400 }]);
-    setHint('Mannequin ready. Pick any design on the right.');
+    const tick = () => {
+      if (!live.current) return;
+      loop.current = requestAnimationFrame(tick);
+      g.setTransform(-1, 0, 0, 1, c.width, 0); // mirror, like a mirror
+      g.drawImage(v, 0, 0, c.width, c.height);
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      renderer.current?.photoChanged();
+      if (visionReady && !busy) {
+        busy = true;
+        const ts = Math.max(lastTs + 1, performance.now());
+        lastTs = ts;
+        analyseFrame(c, c.width, c.height, ts, n++ % 2 === 0).then(({ body: b, masks }) => {
+          if (masks) renderer.current?.setMasks(masks);
+          if (b && b.confidence > 0.4) {
+            const first = !body.current;
+            body.current = smoothBody(body.current, b);
+            if (first) setStatus({ kind: 'ok', text: 'Tracking you live. Turn a little, raise an arm.' });
+          }
+        }).catch(() => {}).finally(() => { busy = false; });
+      }
+      redraw();
+    };
+    tick();
+  }
+
+  function stopCamera() {
+    live.current = false;
+    cancelAnimationFrame(loop.current);
+    stream.current?.getTracks().forEach((t) => t.stop());
+    stream.current = null;
+    video.current = null;
+  }
+
+  function capture() {
+    const f = frame.current;
+    if (!f) return;
+    stopCamera();
+    const c = document.createElement('canvas');
+    c.width = f.width; c.height = f.height;
+    c.getContext('2d')!.drawImage(f, 0, 0);
+    const b = body.current;
+    applyPhoto(c);
+    setSource('photo');
+    if (b) { body.current = b; setStatus({ kind: 'ok', text: 'Captured. Fine-tune by dragging, or save the image.' }); redraw(); }
+    else scan(c);
+  }
+
+  function reset() {
+    stopCamera();
+    body.current = null;
+    setSource('none');
+    setStatus({ kind: 'idle', text: '' });
+    setPicking(null);
   }
 
   // ---------- direct manipulation ----------
   const pointers = useRef(new Map<number, Pt>());
-  const gesture = useRef<{ pts: Pt[]; t: T } | null>(null);
-  const toCanvas = (e: React.PointerEvent | PointerEvent): Pt => {
+  const gesture = useRef<{ pts: Pt[]; fit: Fit } | null>(null);
+  const toImage = (e: React.PointerEvent | PointerEvent): Pt => {
     const cv = cvRef.current!, r = cv.getBoundingClientRect();
-    return { x: ((e.clientX - r.left) / r.width) * cv.width, y: ((e.clientY - r.top) / r.height) * cv.height };
+    return { x: ((e.clientX - r.left) / r.width) * dims.w, y: ((e.clientY - r.top) / r.height) * dims.h };
   };
-  const startGesture = () => { gesture.current = t.current ? { pts: [...pointers.current.values()].map((p) => ({ ...p })), t: { ...t.current } } : null; };
+  const startGesture = () => { gesture.current = { pts: [...pointers.current.values()].map((p) => ({ ...p })), fit: { ...fitRef.current } }; };
+  const clampScale = (s: number) => Math.max(0.6, Math.min(1.6, s));
 
   const onDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const p = toCanvas(e);
+    const p = toImage(e);
     if (picking) {
       const pts = [...picking, p];
-      if (pts.length === 2) {
-        setPicking(null);
-        setHint('Fitted. Fine-tune by dragging or with the sliders.');
-        fit(pts[0], pts[1]);
-      } else {
-        setPicking(pts);
-        setHint('Now tap your other shoulder.');
-      }
+      if (pts.length < 2) { setPicking(pts); setStatus({ kind: 'warn', text: 'Now tap your other shoulder.' }); return; }
+      setPicking(null);
+      body.current = bodyFromShoulders(pts[0], pts[1]);
+      setFit(DEFAULT_FIT);
+      setStatus({ kind: 'ok', text: 'Placed. Drag, pinch or use the sliders to fine-tune.' });
+      redraw();
       return;
     }
+    if (source === 'camera') return;
     e.currentTarget.setPointerCapture(e.pointerId);
     pointers.current.set(e.pointerId, p);
     startGesture();
   };
   const onMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!pointers.current.has(e.pointerId) || !t.current || !gesture.current) return;
-    pointers.current.set(e.pointerId, toCanvas(e));
-    const pts = [...pointers.current.values()], g = gesture.current;
+    const g = gesture.current;
+    if (!g || !pointers.current.has(e.pointerId)) return;
+    pointers.current.set(e.pointerId, toImage(e));
+    const pts = [...pointers.current.values()];
     if (pts.length === 1 && g.pts.length === 1) {
-      t.current = { ...t.current, cx: g.t.cx + pts[0].x - g.pts[0].x, cy: g.t.cy + pts[0].y - g.pts[0].y };
+      setFit({ ...g.fit, dx: g.fit.dx + pts[0].x - g.pts[0].x, dy: g.fit.dy + pts[0].y - g.pts[0].y });
     } else if (pts.length >= 2 && g.pts.length >= 2) {
       const d = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y) || 1;
-      const ang = (a: Pt, b: Pt) => Math.atan2(b.y - a.y, b.x - a.x);
-      const m0 = { x: (g.pts[0].x + g.pts[1].x) / 2, y: (g.pts[0].y + g.pts[1].y) / 2 };
-      const m1 = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
-      t.current = { w: clampW(g.t.w * (d(pts[0], pts[1]) / d(g.pts[0], g.pts[1]))), rot: g.t.rot + ang(pts[0], pts[1]) - ang(g.pts[0], g.pts[1]), cx: g.t.cx + m1.x - m0.x, cy: g.t.cy + m1.y - m0.y };
+      setFit({ ...g.fit, scale: clampScale(g.fit.scale * (d(pts[0], pts[1]) / d(g.pts[0], g.pts[1]))) });
     }
-    draw();
   };
   const onUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
     pointers.current.delete(e.pointerId);
-    if (pointers.current.size) startGesture(); else { gesture.current = null; syncSliders(); }
+    if (pointers.current.size) startGesture(); else gesture.current = null;
   };
-  const clampW = (w: number) => { const cv = cvRef.current!; return Math.max(cv.width * 0.05, Math.min(cv.width * 2.5, w)); };
-
   useEffect(() => {
     const cv = cvRef.current;
     if (!cv) return;
     const onWheel = (e: WheelEvent) => {
-      if (!t.current) return;
+      if (!body.current) return;
       e.preventDefault();
-      t.current = { ...t.current, w: clampW(t.current.w * Math.exp(-e.deltaY * 0.0015)) };
-      syncSliders(); draw();
+      setFit((f) => ({ ...f, scale: clampScale(f.scale * Math.exp(-e.deltaY * 0.001)) }));
     };
     cv.addEventListener('wheel', onWheel, { passive: false });
     return () => cv.removeEventListener('wheel', onWheel);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draw, syncSliders]);
+  }, []);
 
   function download() {
-    const cv = cvRef.current!;
-    cv.toBlob((blob) => {
+    redraw();
+    cvRef.current!.toBlob((blob) => {
       if (!blob) return;
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -320,40 +368,66 @@ export function TrialRoom({ products, initial }: { products: TryProduct[]; initi
     setOpen(true);
   };
 
+  const hasSource = source !== 'none';
+  const show360 = view === '360';
+
   return (
     <div className="tryon">
       <div>
+        <div className="stage-top">
+          <div className="view-toggle static" role="group" aria-label="View">
+            <button aria-pressed={!show360} onClick={() => setView('on-you')}>On you</button>
+            <button aria-pressed={show360} onClick={() => setView('360')}>360° view</button>
+          </div>
+          {!show360 && status.text && (
+            <span className={`scan-status ${status.kind === 'ok' ? 'ok' : status.kind === 'warn' ? 'warn' : ''}`} role="status">
+              {status.kind === 'busy' && <i aria-hidden />}{status.text}
+            </span>
+          )}
+        </div>
+
         <div className={`stage${picking ? ' picking' : ''}`}>
-          {!hasPhoto && !camera && (
+          {show360 && (
+            <div style={{ position: 'absolute', inset: 0 }}>
+              <Garment360 key={`${product.handle}-${hex}`} kind={product.kind} color={hex} ink={product.ink} slogan={product.baseName} artwork={artwork} />
+            </div>
+          )}
+          {!show360 && !hasSource && (
             <div className="drop"
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); fromFile(e.dataTransfer.files[0]); }}>
               <div className="drop-ring" aria-hidden><span /></div>
               <h2 className="display h3">Step into the trial room</h2>
-              <p className="muted" style={{ maxWidth: 420, margin: '12px auto 24px' }}>A front-facing, waist-up photo in good light works best. Your photo stays on your device. It is never uploaded.</p>
+              <p className="muted" style={{ maxWidth: 440, margin: '12px auto 24px' }}>Stand facing the camera, arms slightly away from your body, shoulders to hips in frame. We find your body and dress it, right here on your device. Nothing is uploaded.</p>
               <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-                <label className="btn btn-gold">Upload a photo<input type="file" accept="image/*" hidden onChange={(e) => fromFile(e.target.files?.[0])} /></label>
-                <button className="btn btn-ghost" onClick={startCamera}>Use camera</button>
+                <label className="btn btn-gold">Upload a photo<input type="file" accept="image/*" hidden onChange={(e) => { fromFile(e.target.files?.[0]); e.target.value = ''; }} /></label>
+                <button className="btn btn-ghost" onClick={startCamera}>Live camera</button>
                 <button className="btn btn-ghost" onClick={mannequin}>Try on mannequin</button>
               </div>
+              {glFailed && <p className="fine" style={{ marginTop: 16 }}>This browser can&apos;t run WebGL, so the trial room isn&apos;t available here. The 360° view needs it too.</p>}
             </div>
           )}
-          {camera && <video ref={videoRef} className="cam" playsInline muted />}
-          <canvas ref={cvRef} hidden={!hasPhoto || camera} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} aria-label="Your photo with the garment overlaid. Drag to move it." />
-          {hasPhoto && !camera && <span className="scanline" aria-hidden />}
-        </div>
-        {camera && (
-          <div className="stage-actions">
-            <button className="btn btn-gold btn-sm" onClick={snap}>● Capture</button>
-            <button className="btn btn-ghost btn-sm" onClick={stopCamera}>Cancel</button>
+          <div className="stage-canvas" style={{ display: show360 || !hasSource ? 'none' : undefined }}>
+            <canvas ref={cvRef} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+              aria-label={`You wearing the ${product.baseName} ${product.kind}. Drag to move it, pinch to resize.`} />
+            {picking?.map((p, i) => <span key={i} className="tap-dot" style={{ left: `${(p.x / dims.w) * 100}%`, top: `${(p.y / dims.h) * 100}%` }} />)}
           </div>
-        )}
-        {hasPhoto && !camera && (
+        </div>
+
+        {!show360 && hasSource && (
           <div className="stage-actions">
-            <button className="btn btn-gold btn-sm" onClick={() => { setPicking([]); setHint('Tap the point of one shoulder, where the seam sits.'); }}>⌖ Fit to shoulders</button>
-            <button className="btn btn-ghost btn-sm" onClick={download}>Save image</button>
-            <button className="btn btn-ghost btn-sm" onClick={() => { photo.current = null; setHasPhoto(false); setPicking(null); }}>New photo</button>
-            <span className="muted" style={{ fontSize: 13 }}>{hint}</span>
+            {source === 'camera' ? (
+              <>
+                <button className="btn btn-gold btn-sm" onClick={capture}>● Capture</button>
+                <button className="btn btn-ghost btn-sm" onClick={reset}>Stop camera</button>
+              </>
+            ) : (
+              <>
+                <button className="btn btn-gold btn-sm" onClick={download}>Save image</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => { setPicking([]); setStatus({ kind: 'warn', text: 'Tap the point of one shoulder, where the seam sits.' }); }}>⌖ Place by shoulders</button>
+                <button className="btn btn-ghost btn-sm" onClick={reset}>New photo</button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -372,7 +446,7 @@ export function TrialRoom({ products, initial }: { products: TryProduct[]; initi
         <div>
           <p style={{ margin: 0, fontWeight: 700, fontSize: 18 }}>{titleCase(product.baseName)}</p>
           <p className="muted" style={{ margin: '2px 0 0', fontSize: 14 }}>{product.kind === 'tee' ? 'Half-sleeve tee' : 'Sweatshirt'} · {inr(variants[0]?.price ?? 0)}</p>
-          {!product.artwork['*'] && !(color && product.artwork[color]) && <p className="fine" style={{ textAlign: 'left', marginTop: 8 }}>Preview print: the slogan set in our typeface. See product photos for the exact artwork.</p>}
+          {!artwork && <p className="fine" style={{ textAlign: 'left', marginTop: 8 }}>Preview print: the slogan set in our typeface. See product photos for the exact artwork.</p>}
         </div>
         {product.colors.length > 1 && (
           <div>
@@ -380,21 +454,22 @@ export function TrialRoom({ products, initial }: { products: TryProduct[]; initi
             <div className="swatches">{product.colors.map((c) => <button key={c} className="swatch" aria-pressed={c === color} aria-label={c} style={{ background: product.colorHex[c] ?? GARMENT_COLORS[c.toLowerCase()] ?? '#444' }} onClick={() => setColor(c)} />)}</div>
           </div>
         )}
-        <div>
-          <div className="opt-label">Mode</div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button className="pill" aria-pressed={mode === 'full'} onClick={() => setMode('full')}>Full {product.kind}</button>
-            <button className="pill" aria-pressed={mode === 'print'} onClick={() => setMode('print')}>Print on what I&apos;m wearing</button>
-          </div>
-        </div>
-        <div className="sliders">
-          <label>Size<input type="range" min={10} max={150} value={Math.min(150, Math.max(10, sliders.scale))} disabled={!hasPhoto}
-            onChange={(e) => { const cv = cvRef.current; if (cv && t.current) { t.current = { ...t.current, w: (+e.target.value / 100) * cv.width }; syncSliders(); draw(); } }} /><output>{sliders.scale}%</output></label>
-          <label>Rotate<input type="range" min={-45} max={45} value={sliders.rot} disabled={!hasPhoto}
-            onChange={(e) => { if (t.current) { t.current = { ...t.current, rot: (+e.target.value * Math.PI) / 180 }; syncSliders(); draw(); } }} /><output>{sliders.rot}°</output></label>
-          <label>Opacity<input type="range" min={40} max={100} value={Math.round(opacity * 100)} onChange={(e) => setOpacity(+e.target.value / 100)} /><output>{Math.round(opacity * 100)}%</output></label>
-          <label className="check"><input type="checkbox" checked={blend} onChange={(e) => setBlend(e.target.checked)} /> Fabric blend (keeps folds and shadows)</label>
-        </div>
+        {!show360 && (
+          <>
+            <div>
+              <div className="opt-label">Wear it as</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button className="pill" aria-pressed={mode === 'full'} onClick={() => setMode('full')}>Full {product.kind}</button>
+                <button className="pill" aria-pressed={mode === 'print'} onClick={() => setMode('print')}>Print on my clothes</button>
+              </div>
+            </div>
+            <div className="sliders">
+              <label>Size<input type="range" min={60} max={160} value={Math.round(fit.scale * 100)} disabled={!hasSource} onChange={(e) => setFit({ ...fit, scale: +e.target.value / 100 })} /><output>{Math.round(fit.scale * 100)}%</output></label>
+              <label>Length<input type="range" min={75} max={130} value={Math.round(fit.length * 100)} disabled={!hasSource || mode === 'print'} onChange={(e) => setFit({ ...fit, length: +e.target.value / 100 })} /><output>{Math.round(fit.length * 100)}%</output></label>
+              <label>Realism<input type="range" min={0} max={100} value={Math.round(realism * 100)} onChange={(e) => setRealism(+e.target.value / 100)} /><output>{Math.round(realism * 100)}%</output></label>
+            </div>
+          </>
+        )}
         <div>
           <div className="opt-label">Your size <Link href="/size-guide" style={{ textDecoration: 'underline' }}>Guide</Link></div>
           <div className="sizes">
@@ -407,7 +482,7 @@ export function TrialRoom({ products, initial }: { products: TryProduct[]; initi
           <button className="btn btn-gold btn-block" onClick={addToBag} disabled={!variants.some((v) => v.available)}>{variants.some((v) => v.available) ? 'Add to bag' : 'Sold out'}</button>
           <Link href={`/products/${product.handle}`} className="btn btn-ghost btn-block">View product</Link>
         </div>
-        <p className="fine" style={{ textAlign: 'left' }}>🔒 Processed entirely in your browser. Your photo is never uploaded or stored.</p>
+        <p className="fine" style={{ textAlign: 'left' }}>🔒 Body scanning runs entirely in your browser. Your photo and camera never leave your device.</p>
       </aside>
     </div>
   );

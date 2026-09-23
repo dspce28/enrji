@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Product } from '@/lib/catalogue';
+import type { GarmentLook } from '@/lib/look';
 import { useCart } from './cart';
 import { Gallery } from './Gallery';
 import { Price } from './Price';
@@ -13,7 +14,7 @@ import { sizesFor } from '@/lib/sizes';
 
 const SWATCH: Record<string, string> = { blue: '#1d4b66', navy: '#1a2140', black: '#111', white: '#eee', grey: '#777' };
 
-export function ProductView({ p, twin }: { p: Product; twin: Pick<Product, 'handle' | 'kind' | 'price' | 'images'> | null }) {
+export function ProductView({ p, twin, look }: { p: Product; twin: Pick<Product, 'handle' | 'kind' | 'price' | 'images'> | null; look: GarmentLook }) {
   const { add, setOpen, toast } = useCart();
   const firstColor = p.colors.find((c) => p.variants.some((v) => v.color === c && v.available)) ?? p.colors[0] ?? null;
   const [color, setColor] = useState<string | null>(firstColor);
@@ -62,7 +63,7 @@ export function ProductView({ p, twin }: { p: Product; twin: Pick<Product, 'hand
 
   return (
     <div className="pdp">
-      <Gallery images={p.images} color={color} title={titleCase(p.title)} />
+      <Gallery images={p.images} color={color} title={titleCase(p.title)} kind={p.kind} slogan={p.baseName} look={look} />
 
       <div className="buybox">
         <div>

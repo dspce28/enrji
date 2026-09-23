@@ -1,27 +1,16 @@
 import type { Metadata } from 'next';
 import { getProducts } from '@/lib/catalogue';
 import { TrialRoom, type TryProduct } from '@/components/TrialRoom';
-import garments from '@/data/garments.json';
-import prints from '@/data/prints.json';
+import { lookFor } from '@/lib/garmentData';
 
 export const revalidate = 300;
 export const metadata: Metadata = { title: 'Trial Room', description: 'Try any ENRJI tee or sweatshirt on your own photo. Private: your photo never leaves your device.' };
-
-type Garment = { color: string; colors?: Record<string, string>; ink?: string };
-const GARMENTS = garments as Record<string, Garment>;
-const PRINTS = new Set<string>(prints);
-const print = (name: string) => (PRINTS.has(name) ? `/prints/${name}.png` : null);
 
 export default async function TrialRoomPage({ searchParams }: { searchParams: Promise<{ product?: string }> }) {
   const { product } = await searchParams;
   const all = (await getProducts()).filter((p) => p.available);
   const items: TryProduct[] = all.map((p) => {
-    const g: Garment = GARMENTS[p.handle] ?? { color: '#1c2a44' };
-    // Print artwork was cut from the flat-lay photos on the store; colour variants may have their own.
-    const artwork: Record<string, string> = {};
-    const base = print(p.handle);
-    if (base) artwork['*'] = base;
-    for (const c of p.colors) { const a = print(`${p.handle}--${c.toLowerCase()}`); if (a) artwork[c] = a; }
+    const look = lookFor(p);
     return {
       handle: p.handle,
       title: p.title,
@@ -29,10 +18,10 @@ export default async function TrialRoomPage({ searchParams }: { searchParams: Pr
       kind: p.kind,
       image: p.images[0]?.src ?? null,
       colors: p.colors,
-      colorHex: g.colors ?? {},
-      defaultColor: g.color,
-      ink: g.ink ?? '#f4efe6',
-      artwork,
+      colorHex: look.colorHex,
+      defaultColor: look.defaultColor,
+      ink: look.ink,
+      artwork: look.artwork,
       variants: p.variants.map((v) => ({ id: v.id, size: v.size, color: v.color, available: v.available, price: v.price, compareAt: v.compareAt, image: v.image })),
     };
   });

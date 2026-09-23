@@ -14,8 +14,9 @@ The redesigned ENRJI website. It is a **Next.js front end over the live Shopify 
 | Shop | Filters by garment, by ENRJI pillar (mental, emotional, physical, spiritual) and stock; sort by price or newest |
 | Product page | Photo gallery with zoom, colour and size selection with live stock, Add to bag, Buy now, tee ↔ sweatshirt switch, size chart, "notify me on WhatsApp" for sold-out sizes, sticky mobile buy bar, Product structured data |
 | Cart | Slide-out bag, stock re-check before checkout, multi-buy offer note |
-| Trial Room | Upload a photo, use the camera or a mannequin; drag/pinch/rotate or tap two shoulders to fit; fabric blend; "print on what I'm wearing" mode; save image; add to bag. Photos never leave the browser |
-| Virtual Store | Walkable 3D gallery (Three.js) with the product photography on the walls and the Live Like Krishna edition centre stage; guided tour; tap a poster to add to bag |
+| Trial Room | Upload a photo, live camera or mannequin. On-device body tracking (MediaPipe pose + clothes/skin segmentation) warps the garment onto shoulders, torso and arms, keeps face, hair and hands in front, recolours the shopper's own top where it shows, and carries over the photo's shading. "Print on my clothes" mode; 360° view; save image; add to bag. Photos never leave the browser |
+| Virtual Store | Walkable 3D gallery (Three.js) with the product photography on the walls, rotating 3D garments on plinths, the Live Like Krishna edition centre stage; guided tour; tap to add to bag |
+| 360° view | Product pages and the Trial Room show each tee/sweatshirt as a 3D garment in its real colour and print; drag to spin |
 
 ### Trial Room print artwork
 The Trial Room draws each tee or sweatshirt in its real colour with its real print. The prints in `public/prints/` were cut out of the flat-lay product photos on enrji.in, and garment colours were sampled from the same photos (`data/garments.json`). `npm run build` regenerates `data/prints.json`, the list the Trial Room reads.
@@ -62,7 +63,10 @@ components/          header, cart, product card/buy box, gallery, TrialRoom, Vir
 lib/catalogue.ts     Shopify feed → typed products (hides internal test products)
 lib/checkout.ts      Shopify cart permalink
 lib/config.ts        store URL, contact details, shipping/returns wording, offers
-lib/garment.ts       garment + print renderer for the Trial Room
+lib/garment.ts       garment + print renderer (flat)
+lib/garment3d.ts     3D garment for the 360° view and Virtual Store
+lib/bodyTracking.ts  on-device pose + segmentation (models self-hosted by scripts/vision-assets.mjs)
+lib/wornRenderer.ts  WebGL compositor that makes the garment look worn
 data/                catalogue snapshot, Trial Room settings
 prototype/           earlier Express prototype (reference only, not deployed)
 ```

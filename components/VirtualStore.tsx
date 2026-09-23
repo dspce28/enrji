@@ -6,6 +6,8 @@ import * as THREE from 'three';
 import { useCart } from './cart';
 import { cdn, inr, titleCase } from '@/lib/format';
 import { Price } from './Price';
+import { drawGarment } from '@/lib/garment';
+import { buildGarment3D, disposeObject } from '@/lib/garment3d';
 
 export interface StoreProduct {
   handle: string;
@@ -17,7 +19,30 @@ export interface StoreProduct {
   compareAt: number | null;
   limited: boolean;
   colors: string[];
+  look: { color: string; ink: string; artwork: string | null };
   variants: { id: number; size: string; color: string | null; available: boolean; price: number; compareAt: number | null; image: string | null }[];
+}
+
+/** 3D garment for a product, built from its real colour and print. */
+async function garmentFor(p: StoreProduct, cols: number) {
+  let art: HTMLImageElement | null = null;
+  if (p.look.artwork) {
+    art = new Image();
+    art.src = p.look.artwork;
+    try { await art.decode(); } catch { art = null; }
+  }
+  const spec = { kind: p.kind, color: p.look.color, ink: p.look.ink, slogan: p.baseName, artwork: art };
+  return buildGarment3D({
+    kind: p.kind, color: p.look.color, cols,
+    front: drawGarment(spec, { scale: 1.3, shading: false }),
+    back: drawGarment(spec, { scale: 0.8, shading: false, noPrint: true }),
+  });
+}
+
+/** Walk up from a hit mesh to the object that carries the product. */
+function owner(o: THREE.Object3D | null): THREE.Object3D | null {
+  while (o && !o.userData.p) o = o.parent;
+  return o;
 }
 
 const ROOM = 16;          // half-width of the hall
@@ -163,7 +188,14 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
     const frameMat = track(new THREE.MeshStandardMaterial({ color: '#1a1712', metalness: 0.85, roughness: 0.3 }));
     const edges = track(new THREE.EdgesGeometry(frameGeo));
     const posterGeo = track(new THREE.PlaneGeometry(2.85, 3.8));
-    const labelGeo = track(new THREE.PlaneGeometry(3.1, 0.62));
+    const labelGeo = track(new THREE.PlaneGeometry(1.9, 0.38));
+    const plinthGeo = track(new THREE.BoxGeometry(2.0, 0.6, 1.1));
+    const plinthEdges = track(new THREE.EdgesGeometry(plinthGeo));
+    const POSTER_Y = 4.35, PLINTH_Z = 1.45;
+    // Garments are built after the store opens, one at a time, so the first frame isn't delayed.
+    const mounts: { p: StoreProduct; parent: THREE.Object3D; at: THREE.Vector3; scale: number; phase: number }[] = [];
+    const spinning: { obj: THREE.Object3D; phase: number; baseY: number }[] = [];
+    const built3d: THREE.Object3D[] = [];
     const centre = products.find((p) => p.limited) ?? products[0];
     const wall = products.filter((p) => p !== centre);
     const places = slots(wall.length);
@@ -174,7 +206,7 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
       g.position.set(s.x, 0, s.z);
       g.rotation.y = s.ry;
       const frame = new THREE.Mesh(frameGeo, frameMat);
-      frame.position.y = 3.05;
+      frame.position.y = POSTER_Y;
       g.add(frame);
       const edgeMat = track(new THREE.LineBasicMaterial({ color: GOLD, toneMapped: false, transparent: true, opacity: 0.8 }));
       const e = new THREE.LineSegments(edges, edgeMat);
@@ -183,20 +215,28 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
       let tex: THREE.Texture | null = null;
       try { tex = await loadTex(p.image); } catch { /* keep the empty frame */ }
       const poster = new THREE.Mesh(posterGeo, track(new THREE.MeshStandardMaterial({ map: tex, color: tex ? '#ffffff' : '#222', roughness: 0.6, emissive: '#ffffff', emissiveMap: tex, emissiveIntensity: 0.28 })));
-      poster.position.set(0, 3.05, 0.06);
+      poster.position.set(0, POSTER_Y, 0.06);
       poster.userData = { p, edgeMat };
       g.add(poster);
       pickables.push(poster);
+      // Plinth with the product name on its face; the 3D garment turns above it.
+      const plinth = new THREE.Mesh(plinthGeo, frameMat);
+      plinth.position.set(0, 0.3, PLINTH_Z);
+      g.add(plinth);
+      const plinthEdge = new THREE.LineSegments(plinthEdges, edgeMat);
+      plinthEdge.position.copy(plinth.position);
+      g.add(plinthEdge);
       const label = new THREE.Mesh(labelGeo, track(new THREE.MeshBasicMaterial({ map: track(textTexture(`${titleCase(p.baseName).toUpperCase()}  ·  ${inr(p.price)}`, { w: 1024, h: 200, font: '700 64px Unbounded, Arial Black, sans-serif', color: '#f4efe6' })), transparent: true, toneMapped: false })));
-      label.position.set(0, 0.62, 0.06);
+      label.position.set(0, 0.3, PLINTH_Z + 0.56);
       g.add(label);
-      const spot = new THREE.Mesh(track(new THREE.CircleGeometry(1.2, 48)), track(new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.08, toneMapped: false })));
+      const spot = new THREE.Mesh(track(new THREE.CircleGeometry(1.3, 48)), track(new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.08, toneMapped: false })));
       spot.rotation.x = -Math.PI / 2;
-      spot.position.set(0, 0.02, 1.5);
+      spot.position.set(0, 0.02, PLINTH_Z);
       g.add(spot);
+      mounts.push({ p, parent: g, at: new THREE.Vector3(0, 1.85, PLINTH_Z), scale: 0.0056, phase: i * 0.7 });
       scene.add(g);
       const fwd = new THREE.Vector3(Math.sin(s.ry), 0, Math.cos(s.ry));
-      stations[i] = { p, pos: new THREE.Vector3(s.x, EYE, s.z).addScaledVector(fwd, 5.2), yaw: s.ry };
+      stations[i] = { p, pos: new THREE.Vector3(s.x, EYE, s.z).addScaledVector(fwd, 6.6), yaw: s.ry };
     }));
 
     // Centre stage: the limited edition, turning slowly in a beam of light.
@@ -212,15 +252,8 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
     const beam = new THREE.Mesh(track(new THREE.CylinderGeometry(1.3, 2, 6, 48, 1, true)), track(new THREE.MeshBasicMaterial({ color: '#ffd9a0', transparent: true, opacity: 0.06, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })));
     beam.position.y = 3.2;
     stage.add(beam);
-    let holo: THREE.Mesh | null = null;
-    const holoBuild = featured ? loadTex(featured.image).then((tex) => {
-      if (disposed) return;
-      holo = new THREE.Mesh(track(new THREE.PlaneGeometry(2.0, 2.67)), track(new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, toneMapped: false })));
-      holo.position.y = 2.1;
-      holo.userData = { p: featured };
-      stage.add(holo);
-      pickables.push(holo);
-    }).catch(() => {}) : Promise.resolve();
+    if (featured) mounts.unshift({ p: featured, parent: stage, at: new THREE.Vector3(0, 2.45, 0), scale: 0.0085, phase: 0 });
+    const holoBuild = Promise.resolve();
     scene.add(stage);
     if (featured) stations.push({ p: featured, pos: new THREE.Vector3(0, EYE, 6.5), yaw: 0 });
 
@@ -258,7 +291,7 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
     const pointer = new THREE.Vector2(-9, -9);
     const ray = new THREE.Raycaster();
     let drag: { x: number; y: number; moved: number } | null = null;
-    let hovered: THREE.Mesh | null = null;
+    let hovered: THREE.Object3D | null = null;
     const onDown = (e: PointerEvent) => { drag = { x: e.clientX, y: e.clientY, moved: 0 }; canvas.setPointerCapture(e.pointerId); };
     const onMove = (e: PointerEvent) => {
       const r = canvas.getBoundingClientRect();
@@ -274,8 +307,8 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
     const onUp = () => {
       if (drag && drag.moved < 6) {
         ray.setFromCamera(pointer, camera);
-        const hit = ray.intersectObjects(pickables)[0];
-        if (hit) { stopTour(); setSelected(hit.object.userData.p as StoreProduct); }
+        const hit = owner(ray.intersectObjects(pickables, true)[0]?.object ?? null);
+        if (hit) { stopTour(); setSelected(hit.userData.p as StoreProduct); }
       }
       drag = null;
     };
@@ -334,26 +367,46 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
 
       if (!drag) {
         ray.setFromCamera(pointer, camera);
-        const hit = (ray.intersectObjects(pickables)[0]?.object as THREE.Mesh | undefined) ?? null;
+        const hit = owner(ray.intersectObjects(pickables, true)[0]?.object ?? null);
         if (hit !== hovered) {
           if (hovered?.userData.edgeMat) (hovered.userData.edgeMat as THREE.LineBasicMaterial).opacity = 0.8;
-          hovered?.scale.setScalar(1);
           hovered = hit;
-          hovered?.scale.setScalar(1.03);
           if (hovered?.userData.edgeMat) (hovered.userData.edgeMat as THREE.LineBasicMaterial).opacity = 1;
           canvas.style.cursor = hovered ? 'pointer' : '';
         }
       }
-      if (holo) holo.rotation.y = t * 0.5;
+      for (const sp of spinning) {
+        sp.obj.rotation.y = t * 0.45 + sp.phase + (sp.obj === hovered ? Math.sin(t * 3) * 0.05 : 0);
+        sp.obj.position.y = sp.baseY + Math.sin(t * 1.1 + sp.phase) * 0.04;
+      }
       halo.scale.setScalar(1 + Math.sin(t * 2) * 0.015);
       dust.rotation.y = t * 0.008;
       renderer.render(scene, camera);
     };
 
-    Promise.all([build, holoBuild, document.fonts?.ready]).finally(() => {
+    Promise.all([build, holoBuild, document.fonts?.ready]).finally(async () => {
       if (disposed) return;
       setLoading(false);
       loop();
+      // Lighter meshes on phones; centre piece first, then the walls.
+      const cols = window.matchMedia('(pointer: coarse)').matches ? 44 : 60;
+      for (const m of mounts) {
+        if (disposed) return;
+        try {
+          const g = await garmentFor(m.p, m === mounts[0] ? cols + 30 : cols);
+          if (disposed) { disposeObject(g); return; }
+          const holder = new THREE.Group();
+          g.scale.setScalar(m.scale);
+          holder.add(g);
+          holder.position.copy(m.at);
+          holder.userData = { p: m.p };
+          m.parent.add(holder);
+          pickables.push(holder as unknown as THREE.Mesh);
+          spinning.push({ obj: holder, phase: m.phase, baseY: m.at.y });
+          built3d.push(g);
+        } catch { /* keep the poster only */ }
+        await new Promise((r) => setTimeout(r, 16));
+      }
     });
 
     return () => {
@@ -367,6 +420,7 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
       canvas.removeEventListener('pointerup', onUp);
       canvas.removeEventListener('pointercancel', onUp);
       disposables.forEach((d) => d.dispose());
+      built3d.forEach(disposeObject);
       grid.geometry.dispose();
       (grid.material as THREE.Material).dispose();
       renderer.dispose();
@@ -375,12 +429,12 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
 
   return (
     <div className="vstore">
-      <canvas ref={canvasRef} aria-label="3D ENRJI store. Drag to look around, use W A S D or the arrow keys to walk, click any poster to see the product." />
+      <canvas ref={canvasRef} aria-label="3D ENRJI store. Drag to look around, use W A S D or the arrow keys to walk, click any tee to see it." />
       {loading && <div className="vstore-loading"><span className="display">Opening the store</span><i /></div>}
       {error && <div className="vstore-loading"><div style={{ textAlign: 'center' }}><p>{error}</p><Link href="/shop" className="btn btn-gold">Shop the collection</Link></div></div>}
       <div className="vstore-hud">
         <p className="eyebrow" style={{ margin: 0 }}>Virtual store</p>
-        <p className="muted" style={{ margin: '6px 0 0', fontSize: 13 }}><b style={{ color: 'var(--text)' }}>Drag</b> to look · <b style={{ color: 'var(--text)' }}>WASD</b> or arrows to walk · <b style={{ color: 'var(--text)' }}>Tap</b> a poster</p>
+        <p className="muted" style={{ margin: '6px 0 0', fontSize: 13 }}><b style={{ color: 'var(--text)' }}>Drag</b> to look · <b style={{ color: 'var(--text)' }}>WASD</b> or arrows to walk · <b style={{ color: 'var(--text)' }}>Tap</b> any tee</p>
       </div>
       <div className="vstore-controls">
         <button className="btn btn-gold btn-sm" onClick={() => (guided ? controls.current?.stopTour() : controls.current?.startTour())}>{guided ? '■ Stop tour' : '▶ Guided tour'}</button>

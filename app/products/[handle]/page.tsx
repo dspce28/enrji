@@ -4,6 +4,7 @@ import { counterpart, getProduct, getProducts } from '@/lib/catalogue';
 import { cdn, titleCase } from '@/lib/format';
 import { SITE_URL } from '@/lib/config';
 import { ProductView } from '@/components/BuyBox';
+import { lookFor } from '@/lib/garmentData';
 import { ProductCard } from '@/components/ProductCard';
 
 export const revalidate = 300;
@@ -52,7 +53,7 @@ export default async function ProductPage({ params }: { params: Promise<{ handle
   return (
     <div className="container">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
-      <ProductView p={p} twin={twin && { handle: twin.handle, kind: twin.kind, price: twin.price, images: twin.images.slice(0, 1) }} />
+      <ProductView p={p} look={lookFor(p)} twin={twin && { handle: twin.handle, kind: twin.kind, price: twin.price, images: twin.images.slice(0, 1) }} />
       {related.length > 0 && (
         <section className="section tight">
           <div className="section-head"><h2 className="display h3">You may also live by</h2></div>

@@ -409,3 +409,28 @@ input[type='checkbox'] { accent-color: var(--gold); }
   .hero-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 32px; }
   .hero-meta div:nth-child(3) { display: none; }
 }
+
+/* ---------- 360° garment viewer ---------- */
+.g360 { position: relative; width: 100%; height: 100%; min-height: 360px; border-radius: var(--radius); overflow: hidden;
+  background: radial-gradient(60% 55% at 50% 45%, rgba(217, 171, 82, .16), transparent 70%), radial-gradient(90% 70% at 50% 110%, rgba(255, 244, 225, .05), transparent 60%), var(--surface); }
+.g360 canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+.g360 canvas:active { cursor: grabbing; }
+.g360-hint { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 6px 14px; border-radius: 99px; background: rgba(9, 9, 10, .6); backdrop-filter: blur(8px); border: 1px solid var(--line); pointer-events: none; }
+.g360-hint span { color: var(--gold); font-size: 15px; }
+.g360-loading { position: absolute; inset: 0; display: grid; place-items: center; }
+.g360-loading span { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--line-2); border-top-color: var(--gold); animation: spin 0.9s linear infinite; }
+.view-toggle { position: absolute; top: 12px; right: 12px; z-index: 2; display: flex; gap: 4px; padding: 4px; border-radius: 99px; background: rgba(9, 9, 10, .7); backdrop-filter: blur(10px); border: 1px solid var(--line-2); }
+.view-toggle button { height: 32px; padding: 0 14px; border-radius: 99px; border: 0; background: transparent; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--muted); }
+.view-toggle button[aria-pressed='true'] { background: var(--text); color: #0a0a0a; }
+
+/* trial room: worn view */
+.stage-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; min-height: 42px; }
+.view-toggle.static { position: static; }
+.scan-status { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 12px; border-radius: 99px; border: 1px solid var(--line-2); color: var(--muted); }
+.scan-status.ok { color: var(--ok); border-color: rgba(143, 214, 148, .35); }
+.scan-status.warn { color: var(--gold-2); border-color: rgba(217, 171, 82, .45); }
+.scan-status i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line-2); border-top-color: var(--gold); animation: spin .8s linear infinite; }
+.stage-canvas { position: relative; display: inline-block; line-height: 0; }
+.stage-canvas canvas { display: block; max-width: 100%; max-height: 78vh; touch-action: none; cursor: grab; }
+.stage.picking .stage-canvas canvas { cursor: crosshair; }
+.tap-dot { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; background: var(--gold-2); box-shadow: 0 0 16px var(--gold); pointer-events: none; }

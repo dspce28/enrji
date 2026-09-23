@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { getProducts } from '@/lib/catalogue';
 import { VirtualStoreLoader } from '@/components/VirtualStoreLoader';
 import type { StoreProduct } from '@/components/VirtualStore';
+import { lookFor } from '@/lib/garmentData';
+import { resolveLook } from '@/lib/look';
 
 export const revalidate = 300;
 export const metadata: Metadata = { title: 'Virtual Store', description: 'Walk through the ENRJI store in 3D and shop straight from the walls.' };
@@ -17,6 +19,7 @@ export default async function VirtualStorePage() {
     seen.add(key);
     products.push({
       handle: p.handle, title: p.title, baseName: p.baseName, kind: p.kind, image: p.images[0].src, price: p.price, compareAt: p.compareAt, limited: p.limited, colors: p.colors,
+      look: (() => { const l = lookFor(p); const r = resolveLook(l, p.colors[0] ?? null); return { color: r.color, ink: l.ink, artwork: r.artwork }; })(),
       variants: p.variants.map((v) => ({ id: v.id, size: v.size, color: v.color, available: v.available, price: v.price, compareAt: v.compareAt, image: v.image })),
     });
   }

@@ -12,8 +12,8 @@ export type GarmentKind = 'tee' | 'sweatshirt';
 export const GARMENT_BOX = { w: 400, h: 440, span: 244, shoulderY: 58 };
 export const PRINT_BOX = { cx: 200, cy: 196, w: 196, h: 172 };
 
-const TEE = 'M150 38 Q200 82 250 38 L322 58 Q362 74 396 140 L348 174 L312 150 L314 420 Q200 434 86 420 L88 150 L52 174 L4 140 Q38 74 78 58 Z';
-const SWEAT = 'M150 38 Q200 80 250 38 L322 58 Q352 66 364 112 L394 390 L352 400 L318 176 L318 402 Q200 414 82 402 L82 176 L48 400 L6 390 L36 112 Q48 66 78 58 Z';
+export const TEE_PATH = 'M150 38 Q200 82 250 38 L322 58 Q362 74 396 140 L348 174 L312 150 L314 420 Q200 434 86 420 L88 150 L52 174 L4 140 Q38 74 78 58 Z';
+export const SWEAT_PATH = 'M150 38 Q200 80 250 38 L322 58 Q352 66 364 112 L394 390 L352 400 L318 176 L318 402 Q200 414 82 402 L82 176 L48 400 L6 390 L36 112 Q48 66 78 58 Z';
 
 export const GARMENT_COLORS: Record<string, string> = {
   navy: '#1b2240', black: '#141414', blue: '#1d4a63', white: '#ecebe6', grey: '#6e6e70', maroon: '#4a1520',
@@ -47,8 +47,18 @@ export interface GarmentSpec {
   artwork?: HTMLImageElement | null;
 }
 
+export interface DrawOptions {
+  scale?: number;
+  printOnly?: boolean;   // crop to the print box, no garment
+  noPrint?: boolean;     // garment only (e.g. the back panel)
+  shading?: boolean;     // painted-in folds and highlights; off when real lighting is applied later
+  bleed?: boolean;       // fill outside the outline with the garment colour (3D textures)
+  bodyless?: boolean;    // print only, left in its place on a full-size canvas (print onto the wearer's own top)
+}
+
 /** Render the garment at `scale` × (400×440) px, transparent background. */
-export function drawGarment(spec: GarmentSpec, scale = 2.5, printOnly = false): HTMLCanvasElement {
+export function drawGarment(spec: GarmentSpec, opts: DrawOptions = {}): HTMLCanvasElement {
+  const { scale = 2.5, printOnly = false, noPrint = false, shading = true, bleed = false, bodyless = false } = opts;
   const c = document.createElement('canvas');
   const box = printOnly ? { w: PRINT_BOX.w, h: PRINT_BOX.h } : GARMENT_BOX;
   c.width = Math.round(box.w * scale);
@@ -57,12 +67,14 @@ export function drawGarment(spec: GarmentSpec, scale = 2.5, printOnly = false): 
   g.scale(scale, scale);
   if (printOnly) g.translate(-(PRINT_BOX.cx - PRINT_BOX.w / 2), -(PRINT_BOX.cy - PRINT_BOX.h / 2));
 
-  const body = new Path2D(spec.kind === 'tee' ? TEE : SWEAT);
-  if (!printOnly) {
+  const body = new Path2D(spec.kind === 'tee' ? TEE_PATH : SWEAT_PATH);
+  if (!printOnly && !bodyless) {
     g.fillStyle = spec.color;
+    if (bleed) g.fillRect(0, 0, 400, 440);
     g.fill(body);
     g.save();
     g.clip(body);
+    if (shading) {
     // Side shadows and a soft chest highlight give the flat shape some volume.
     const side = g.createLinearGradient(0, 0, 400, 0);
     side.addColorStop(0, 'rgba(0,0,0,.38)'); side.addColorStop(.2, 'rgba(0,0,0,0)'); side.addColorStop(.8, 'rgba(0,0,0,0)'); side.addColorStop(1, 'rgba(0,0,0,.38)');
@@ -72,6 +84,7 @@ export function drawGarment(spec: GarmentSpec, scale = 2.5, printOnly = false): 
     g.fillStyle = hl; g.fillRect(0, 0, 400, 440);
     g.strokeStyle = 'rgba(0,0,0,.14)'; g.lineWidth = 7;
     g.beginPath(); g.moveTo(92, 160); g.quadraticCurveTo(124, 270, 106, 400); g.moveTo(308, 160); g.quadraticCurveTo(278, 260, 296, 400); g.stroke();
+    }
     if (spec.kind === 'sweatshirt') {
       // Ribbed hem and cuffs.
       g.fillStyle = shade(spec.color, -0.06);
@@ -86,6 +99,8 @@ export function drawGarment(spec: GarmentSpec, scale = 2.5, printOnly = false): 
     g.strokeStyle = shade(spec.color, -0.12); g.lineWidth = 9;
     g.beginPath(); g.moveTo(150, 38); g.quadraticCurveTo(200, 82, 250, 38); g.stroke();
   }
+
+  if (noPrint) return c;
 
   // Print.
   g.save();
