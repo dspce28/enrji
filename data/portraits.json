@@ -1,0 +1,398 @@
+{
+ "accept-appreciate": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitleddesign-2026-06-28T130119.226.png?v=1782631891",
+  "bbox": [
+   0.122,
+   0.055,
+   0.851,
+   0.998
+  ]
+ },
+ "accept-appreciate-sweatshirt": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T165158.564.png?v=1782645748",
+  "bbox": [
+   0.16,
+   0.065,
+   0.902,
+   0.998
+  ]
+ },
+ "be-the-change": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T180725.796.png?v=1782650320",
+  "bbox": [
+   0.06,
+   0.0,
+   0.982,
+   0.998
+  ]
+ },
+ "be-the-change-sweatshirt": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-09-01T184621.575.png?v=1788268634",
+  "bbox": [
+   0.116,
+   0.063,
+   0.973,
+   0.998
+  ]
+ },
+ "believe": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitleddesign_75.png?v=1789410257",
+  "bbox": [
+   0.053,
+   0.067,
+   0.971,
+   0.998
+  ]
+ },
+ "business-is-seva": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/ChatGPT_Image_Aug_21_2026_11_35_22_AM.png?v=1787292439",
+  "bbox": [
+   0.107,
+   0.037,
+   0.893,
+   0.998
+  ]
+ },
+ "business-is-seva-tee": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_6.png?v=1787294573",
+  "bbox": [
+   0.12,
+   0.045,
+   0.862,
+   0.998
+  ]
+ },
+ "energy": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_30.png?v=1787794313",
+  "bbox": [
+   0.12,
+   0.048,
+   0.851,
+   0.998
+  ]
+ },
+ "energy-fade-sweatshirt": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T172001.110.png?v=1782647432",
+  "bbox": [
+   0.0,
+   0.0,
+   0.998,
+   0.998
+  ]
+ },
+ "energy-step-sweatshirt": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T172220.704.png?v=1782647571",
+  "bbox": [
+   0.122,
+   0.018,
+   0.884,
+   0.998
+  ]
+ },
+ "energy-white": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T174543.848.png?v=1782648984",
+  "bbox": [
+   0.0,
+   0.0,
+   0.998,
+   0.998
+  ]
+ },
+ "family-is-my-strength": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitleddesign-2026-06-28T181037.115.png?v=1782650484",
+  "bbox": [
+   0.0,
+   0.0,
+   0.998,
+   0.998
+  ]
+ },
+ "family-is-my-strength-sweatshirt": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/ChatGPTImageJun28_2026_08_33_31PM.png?v=1782659027",
+  "bbox": [
+   0.078,
+   0.035,
+   0.893,
+   0.998
+  ]
+ },
+ "focus": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-27T195821.702.png?v=1782570520",
+  "bbox": [
+   0.153,
+   0.057,
+   0.842,
+   0.998
+  ]
+ },
+ "focus-sweatshirt": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitleddesign-2026-06-27T202424.835.png?v=1782572085",
+  "bbox": [
+   0.044,
+   0.047,
+   0.9,
+   0.998
+  ]
+ },
+ "grateful-gtb": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitleddesign-2026-06-28T095439.595.png?v=1782620734",
+  "bbox": [
+   0.082,
+   0.13,
+   0.909,
+   0.998
+  ]
+ },
+ "grateful-gtb-sweatshirt": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T165816.815.png?v=1782646147",
+  "bbox": [
+   0.12,
+   0.033,
+   0.947,
+   0.998
+  ]
+ },
+ "happiness": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_92_a8b982cd-3287-452e-b74d-6dfc2c6004d8.png?v=1782630120",
+  "bbox": [
+   0.149,
+   0.115,
+   0.822,
+   0.998
+  ]
+ },
+ "happiness-sweatshirt": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitleddesign_94.png?v=1782631142",
+  "bbox": [
+   0.133,
+   0.027,
+   0.933,
+   0.998
+  ]
+ },
+ "health-is-my-new-religion": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitleddesign-2026-06-28T190056.281.png?v=1782653538",
+  "bbox": [
+   0.0,
+   0.075,
+   0.998,
+   0.998
+  ]
+ },
+ "health-is-my-new-religion-sweatshirt": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_61_136bc339-a6cc-456d-a83d-5e8f6e838ed6.png?v=1788344842",
+  "bbox": [
+   0.104,
+   0.058,
+   0.964,
+   0.998
+  ]
+ },
+ "healthy-is-new-rich": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitleddesign-2026-06-28T205732.191.png?v=1782660475",
+  "bbox": [
+   0.0,
+   0.072,
+   0.998,
+   0.998
+  ]
+ },
+ "healthy-is-new-rich-sweatshirt": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitleddesign-2026-06-28T212850.611.png?v=1782662376",
+  "bbox": [
+   0.158,
+   0.017,
+   0.887,
+   0.998
+  ]
+ },
+ "i-am-energy": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T155610.990.png?v=1782642385",
+  "bbox": [
+   0.113,
+   0.035,
+   0.882,
+   0.998
+  ]
+ },
+ "i-am-energy-sweatshirt": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T164108.089.png?v=1782645120",
+  "bbox": [
+   0.0,
+   0.033,
+   0.94,
+   0.998
+  ]
+ },
+ "love-is-my-superpower": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_28.png?v=1787793967",
+  "bbox": [
+   0.0,
+   0.053,
+   0.998,
+   0.998
+  ]
+ },
+ "love-is-my-superpower-sweatshirt": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T165451.944.png?v=1782645922",
+  "bbox": [
+   0.18,
+   0.01,
+   0.913,
+   0.998
+  ]
+ },
+ "manifesting": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitleddesign-2026-06-27T234655.538.png?v=1782584370",
+  "bbox": [
+   0.173,
+   0.025,
+   0.862,
+   0.998
+  ]
+ },
+ "manifesting-2": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T175245.687.png?v=1782649396",
+  "bbox": [
+   0.0,
+   0.0,
+   0.998,
+   0.998
+  ]
+ },
+ "manifesting-spiritual-sweatshirt": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T170222.757.png?v=1782646379",
+  "bbox": [
+   0.189,
+   0.087,
+   0.836,
+   0.998
+  ]
+ },
+ "manifesting-sweatshirt": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T170607.074.png?v=1782646617",
+  "bbox": [
+   0.029,
+   0.0,
+   0.998,
+   0.998
+  ]
+ },
+ "massive-action": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T180501.230.png?v=1782650142",
+  "bbox": [
+   0.0,
+   0.0,
+   0.998,
+   0.998
+  ]
+ },
+ "massive-action-sweatshirt": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T141648.137.png?v=1782637215",
+  "bbox": [
+   0.082,
+   0.023,
+   0.96,
+   0.998
+  ]
+ },
+ "mindset-is-everything": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T174143.488.png?v=1782648736",
+  "bbox": [
+   0.047,
+   0.005,
+   0.971,
+   0.998
+  ]
+ },
+ "mindset-is-everything-sweatshirt": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitleddesign-2026-06-28T111007.938.png?v=1782625444",
+  "bbox": [
+   0.111,
+   0.017,
+   0.887,
+   0.998
+  ]
+ },
+ "money-is-energy": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/ChatGPT_Image_Jun_28_2026_10_21_47_PM.png?v=1782665786",
+  "bbox": [
+   0.149,
+   0.028,
+   0.938,
+   0.998
+  ]
+ },
+ "money-is-energy-sweatshirt": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T230250.130.png?v=1782668020",
+  "bbox": [
+   0.142,
+   0.022,
+   0.88,
+   0.998
+  ]
+ },
+ "never-give-up": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T173458.937.png?v=1782648410",
+  "bbox": [
+   0.16,
+   0.063,
+   0.931,
+   0.998
+  ]
+ },
+ "never-give-up-sweatshirt": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitleddesign-2026-06-27T232456.843.png?v=1782582912",
+  "bbox": [
+   0.08,
+   0.043,
+   0.9,
+   0.998
+  ]
+ },
+ "selling-is-serving-sweatshirt": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_10.png?v=1787297821",
+  "bbox": [
+   0.104,
+   0.037,
+   0.896,
+   0.998
+  ]
+ },
+ "selling-is-serving-tee": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_18.png?v=1787299608",
+  "bbox": [
+   0.116,
+   0.045,
+   0.856,
+   0.998
+  ]
+ },
+ "surrender-smile-rise": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitleddesign_68.png?v=1789408528",
+  "bbox": [
+   0.138,
+   0.082,
+   0.867,
+   0.998
+  ]
+ },
+ "tathastu": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T173919.145.png?v=1782648613",
+  "bbox": [
+   0.144,
+   0.067,
+   0.829,
+   0.998
+  ]
+ },
+ "tathastu-sweatshirt": {
+  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T164734.039.png?v=1782645497",
+  "bbox": [
+   0.138,
+   0.0,
+   0.929,
+   0.998
+  ]
+ }
+}

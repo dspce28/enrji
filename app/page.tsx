@@ -4,8 +4,17 @@ import { cdn, srcSet, titleCase } from '@/lib/format';
 import { PROMISES } from '@/lib/config';
 import { ProductCard } from '@/components/ProductCard';
 import { Reveal } from '@/components/Reveal';
+import { HomeHero3D, type HeroSlide } from '@/components/HomeHero3D';
+import { HomeEffects } from '@/components/HomeEffects';
+import { Showcase, type ShowcaseItem } from '@/components/Showcase';
+import { inr } from '@/lib/format';
+import portraits from '@/data/portraits.json';
 
 export const revalidate = 300;
+
+const PORTRAITS = portraits as Record<string, unknown>;
+// Hero order: these first when they have a 3D photo, then the rest of the catalogue.
+const HERO_FIRST = ['believe', 'i-am-energy', 'selling-is-serving-tee', 'family-is-my-strength', 'health-is-my-new-religion'];
 
 const photo = (products: Product[], handle: string, i = 0) => products.find((p) => p.handle === handle)?.images[i] ?? products[0]?.images[0];
 
@@ -20,16 +29,35 @@ export default async function Home() {
   const trialBg = photo(products, 'selling-is-serving-tee', 0);
   const storeBg = photo(products, 'i-am-energy', 1);
   const pillarCount = (k: Pillar) => products.filter((p) => pillarOf(p) === k).length;
+  // One 3D-photo piece per slogan, available first.
+  const worn: Product[] = [];
+  const seenName = new Set<string>();
+  const order = (p: Product) => (p.available ? 0 : 1000) + (HERO_FIRST.indexOf(p.handle) + 1 || 99);
+  for (const p of [...products].sort((a, b) => order(a) - order(b))) {
+    const key = p.baseName.toLowerCase();
+    if (!PORTRAITS[p.handle] || seenName.has(key)) continue;
+    seenName.add(key);
+    worn.push(p);
+  }
+  const kindLabel = (p: Product) => (p.limited ? 'Limited edition' : p.kind === 'tee' ? 'Half-sleeve tee' : 'Sweatshirt');
+  const slides: HeroSlide[] = worn.slice(0, 5).map((p) => ({ handle: p.handle, name: titleCase(p.baseName), line: [kindLabel(p), pillarOf(p) && PILLARS[pillarOf(p)!].title].filter(Boolean).join(' · '), price: inr(p.price) }));
+  const showcase: ShowcaseItem[] = worn.slice(0, 12).map((p) => ({ handle: p.handle, name: titleCase(p.baseName), kind: kindLabel(p), price: inr(p.price) }));
 
   return (
     <>
-      <section className="hero">
-        <div className="hero-media">
-          {hero && <img src={cdn(hero.src, 1600)} srcSet={srcSet(hero.src, [720, 1080, 1600, 2000])} sizes="100vw" alt="Sneh Desai on stage wearing the I AM ENERGY tee" fetchPriority="high" />}
-        </div>
+      <HomeEffects />
+      <section className={`hero${slides.length ? ' hero3d' : ''}`}>
+        {slides.length ? <HomeHero3D slides={slides} /> : (
+          <div className="hero-media">
+            {hero && <img src={cdn(hero.src, 1600)} srcSet={srcSet(hero.src, [720, 1080, 1600, 2000])} sizes="100vw" alt="Sneh Desai on stage wearing the I AM ENERGY tee" fetchPriority="high" />}
+          </div>
+        )}
         <div className="container hero-content">
           <p className="eyebrow">Feel it · Live it</p>
-          <h1 className="display h1" style={{ marginTop: 18 }}>Wear your <span className="gold-text">energy.</span></h1>
+          <h1 className="display h1 split-in" style={{ marginTop: 18 }}>
+            {'Wear your'.split(' ').map((w, i) => <span key={i}><span className="w"><span style={{ animationDelay: `${0.2 + i * 0.12}s` }}>{w}</span></span>{' '}</span>)}
+            <span className="w"><span className="gold-text" style={{ animationDelay: '0.44s' }}>energy.</span></span>
+          </h1>
           <p className="lead">Tees and sweatshirts born from the teachings of Sneh Desai. Each one carries a single idea you have decided to live by.</p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <Link href="/shop" className="btn btn-gold">Shop the collection</Link>
@@ -47,6 +75,8 @@ export default async function Home() {
       <div className="marquee" aria-hidden>
         <div className="marquee-track">{[...slogans, ...slogans].map((s, i) => <span key={i}>{s}</span>)}</div>
       </div>
+
+      {showcase.length >= 4 && <Showcase items={showcase} />}
 
       {drop.length > 0 && (
         <section className="section">
@@ -121,7 +151,7 @@ export default async function Home() {
           <div className="experiences">
             <Reveal>
               <Link href="/trial-room" className="exp">
-                <div className="exp-bg">{trialBg && <img src={cdn(trialBg.src, 1200)} alt="" loading="lazy" />}</div>
+                <div className="exp-bg clip-reveal">{trialBg && <img src={cdn(trialBg.src, 1200)} alt="" loading="lazy" />}</div>
                 <span className="scan" aria-hidden />
                 <div>
                   <p className="eyebrow">Trial Room</p>
@@ -133,7 +163,7 @@ export default async function Home() {
             </Reveal>
             <Reveal delay={120}>
               <Link href="/virtual-store" className="exp">
-                <div className="exp-bg">{storeBg && <img src={cdn(storeBg.src, 1200)} alt="" loading="lazy" />}</div>
+                <div className="exp-bg clip-reveal">{storeBg && <img src={cdn(storeBg.src, 1200)} alt="" loading="lazy" />}</div>
                 <span className="grid-floor" aria-hidden />
                 <div>
                   <p className="eyebrow">Virtual Store</p>
@@ -149,7 +179,7 @@ export default async function Home() {
 
       <section className="section">
         <div className="container founder">
-          <Reveal className="founder-img">
+          <Reveal className="founder-img clip-reveal">
             {founder && <img src={cdn(founder.src, 1200)} srcSet={srcSet(founder.src, [540, 900, 1200])} sizes="(max-width: 860px) 100vw, 45vw" alt="Sneh Desai at Live Like Krishna" loading="lazy" />}
           </Reveal>
           <Reveal delay={120}>

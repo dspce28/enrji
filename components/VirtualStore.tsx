@@ -6,8 +6,7 @@ import * as THREE from 'three';
 import { useCart } from './cart';
 import { cdn, inr, titleCase } from '@/lib/format';
 import { Price } from './Price';
-import { drawGarment } from '@/lib/garment';
-import { buildGarment3D, disposeObject } from '@/lib/garment3d';
+import { createPortrait, loadPortrait, type PortraitMesh } from '@/lib/depthPortrait';
 
 export interface StoreProduct {
   handle: string;
@@ -19,30 +18,8 @@ export interface StoreProduct {
   compareAt: number | null;
   limited: boolean;
   colors: string[];
-  look: { color: string; ink: string; artwork: string | null };
+  portrait: boolean;      // has a 3D photo (public/store/<handle>.*)
   variants: { id: number; size: string; color: string | null; available: boolean; price: number; compareAt: number | null; image: string | null }[];
-}
-
-/** 3D garment for a product, built from its real colour and print. */
-async function garmentFor(p: StoreProduct, cols: number) {
-  let art: HTMLImageElement | null = null;
-  if (p.look.artwork) {
-    art = new Image();
-    art.src = p.look.artwork;
-    try { await art.decode(); } catch { art = null; }
-  }
-  const spec = { kind: p.kind, color: p.look.color, ink: p.look.ink, slogan: p.baseName, artwork: art };
-  return buildGarment3D({
-    kind: p.kind, color: p.look.color, cols,
-    front: drawGarment(spec, { scale: 1.3, shading: false }),
-    back: drawGarment(spec, { scale: 0.8, shading: false, noPrint: true }),
-  });
-}
-
-/** Walk up from a hit mesh to the object that carries the product. */
-function owner(o: THREE.Object3D | null): THREE.Object3D | null {
-  while (o && !o.userData.p) o = o.parent;
-  return o;
 }
 
 const ROOM = 16;          // half-width of the hall
@@ -183,20 +160,15 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
     const loadTex = (src: string) => new Promise<THREE.Texture>((res, rej) => loader.load(cdn(src, 768), (t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; res(track(t)); }, undefined, rej));
 
     const pickables: THREE.Mesh[] = [];
+    const portraits: PortraitMesh[] = [];
+    const figures: { mesh: PortraitMesh; group: THREE.Group; yaw: number }[] = [];
     const stations: { p: StoreProduct; pos: THREE.Vector3; yaw: number }[] = [];
     const frameGeo = track(new THREE.BoxGeometry(3.1, 4.05, 0.1));
     const frameMat = track(new THREE.MeshStandardMaterial({ color: '#1a1712', metalness: 0.85, roughness: 0.3 }));
     const edges = track(new THREE.EdgesGeometry(frameGeo));
     const posterGeo = track(new THREE.PlaneGeometry(2.85, 3.8));
-    const labelGeo = track(new THREE.PlaneGeometry(1.9, 0.38));
-    const plinthGeo = track(new THREE.BoxGeometry(2.0, 0.6, 1.1));
-    const plinthEdges = track(new THREE.EdgesGeometry(plinthGeo));
-    const POSTER_Y = 4.35, PLINTH_Z = 1.45;
-    // Garments are built after the store opens, one at a time, so the first frame isn't delayed.
-    const mounts: { p: StoreProduct; parent: THREE.Object3D; at: THREE.Vector3; scale: number; phase: number }[] = [];
-    const spinning: { obj: THREE.Object3D; phase: number; baseY: number }[] = [];
-    const built3d: THREE.Object3D[] = [];
-    const centre = products.find((p) => p.limited) ?? products[0];
+    const labelGeo = track(new THREE.PlaneGeometry(3.1, 0.62));
+    const centre = products.find((p) => p.limited && p.portrait) ?? products.find((p) => p.portrait) ?? products[0];
     const wall = products.filter((p) => p !== centre);
     const places = slots(wall.length);
 
@@ -206,37 +178,42 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
       g.position.set(s.x, 0, s.z);
       g.rotation.y = s.ry;
       const frame = new THREE.Mesh(frameGeo, frameMat);
-      frame.position.y = POSTER_Y;
+      frame.position.y = 3.05;
       g.add(frame);
       const edgeMat = track(new THREE.LineBasicMaterial({ color: GOLD, toneMapped: false, transparent: true, opacity: 0.8 }));
       const e = new THREE.LineSegments(edges, edgeMat);
       e.position.copy(frame.position);
       g.add(e);
-      let tex: THREE.Texture | null = null;
-      try { tex = await loadTex(p.image); } catch { /* keep the empty frame */ }
-      const poster = new THREE.Mesh(posterGeo, track(new THREE.MeshStandardMaterial({ map: tex, color: tex ? '#ffffff' : '#222', roughness: 0.6, emissive: '#ffffff', emissiveMap: tex, emissiveIntensity: 0.28 })));
-      poster.position.set(0, POSTER_Y, 0.06);
+      let poster: THREE.Mesh | null = null;
+      if (p.portrait) {
+        // 3D photo: the model stands out of the frame and shifts as you walk past.
+        try {
+          const pm = createPortrait(await loadPortrait(p.handle), { mode: 'full', height: 3.8, relief: 0.32 });
+          pm.material.uniforms.brightness.value = 0.97;
+          pm.position.set(0, 3.05 - 1.9, 0.06);
+          portraits.push(pm);
+          poster = pm;
+        } catch { /* fall back to the flat photo */ }
+      }
+      if (!poster) {
+        let tex: THREE.Texture | null = null;
+        try { tex = await loadTex(p.image); } catch { /* keep the empty frame */ }
+        poster = new THREE.Mesh(posterGeo, track(new THREE.MeshStandardMaterial({ map: tex, color: tex ? '#ffffff' : '#222', roughness: 0.6, emissive: '#ffffff', emissiveMap: tex, emissiveIntensity: 0.28 })));
+        poster.position.set(0, 3.05, 0.06);
+      }
       poster.userData = { p, edgeMat };
       g.add(poster);
       pickables.push(poster);
-      // Plinth with the product name on its face; the 3D garment turns above it.
-      const plinth = new THREE.Mesh(plinthGeo, frameMat);
-      plinth.position.set(0, 0.3, PLINTH_Z);
-      g.add(plinth);
-      const plinthEdge = new THREE.LineSegments(plinthEdges, edgeMat);
-      plinthEdge.position.copy(plinth.position);
-      g.add(plinthEdge);
       const label = new THREE.Mesh(labelGeo, track(new THREE.MeshBasicMaterial({ map: track(textTexture(`${titleCase(p.baseName).toUpperCase()}  ·  ${inr(p.price)}`, { w: 1024, h: 200, font: '700 64px Unbounded, Arial Black, sans-serif', color: '#f4efe6' })), transparent: true, toneMapped: false })));
-      label.position.set(0, 0.3, PLINTH_Z + 0.56);
+      label.position.set(0, 0.62, 0.06);
       g.add(label);
-      const spot = new THREE.Mesh(track(new THREE.CircleGeometry(1.3, 48)), track(new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.08, toneMapped: false })));
+      const spot = new THREE.Mesh(track(new THREE.CircleGeometry(1.2, 48)), track(new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.08, toneMapped: false })));
       spot.rotation.x = -Math.PI / 2;
-      spot.position.set(0, 0.02, PLINTH_Z);
+      spot.position.set(0, 0.02, 1.5);
       g.add(spot);
-      mounts.push({ p, parent: g, at: new THREE.Vector3(0, 1.85, PLINTH_Z), scale: 0.0056, phase: i * 0.7 });
       scene.add(g);
       const fwd = new THREE.Vector3(Math.sin(s.ry), 0, Math.cos(s.ry));
-      stations[i] = { p, pos: new THREE.Vector3(s.x, EYE, s.z).addScaledVector(fwd, 6.6), yaw: s.ry };
+      stations[i] = { p, pos: new THREE.Vector3(s.x, EYE, s.z).addScaledVector(fwd, 5.2), yaw: s.ry };
     }));
 
     // Centre stage: the limited edition, turning slowly in a beam of light.
@@ -252,8 +229,62 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
     const beam = new THREE.Mesh(track(new THREE.CylinderGeometry(1.3, 2, 6, 48, 1, true)), track(new THREE.MeshBasicMaterial({ color: '#ffd9a0', transparent: true, opacity: 0.06, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })));
     beam.position.y = 3.2;
     stage.add(beam);
-    if (featured) mounts.unshift({ p: featured, parent: stage, at: new THREE.Vector3(0, 2.45, 0), scale: 0.0085, phase: 0 });
-    const holoBuild = Promise.resolve();
+    let holo: THREE.Mesh | null = null;
+    const holoBuild = !featured ? Promise.resolve() : featured.portrait
+      // Life-size 3D figure of the model, rising out of the light.
+      ? loadPortrait(featured.handle).then((tx) => {
+        if (disposed) return;
+        const fig = createPortrait(tx, { mode: 'cutout', height: 2.75 });
+        fig.material.uniforms.bottomFade.value = 0.16;
+        fig.material.uniforms.reveal.value = 0;
+        fig.position.y = 0.5;
+        fig.userData = { p: featured };
+        stage.add(fig);
+        pickables.push(fig);
+        portraits.push(fig);
+        holo = fig;
+      }).catch(() => {})
+      : loadTex(featured.image).then((tex) => {
+        if (disposed) return;
+        holo = new THREE.Mesh(track(new THREE.PlaneGeometry(2.0, 2.67)), track(new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, toneMapped: false })));
+        holo.position.y = 2.1;
+        holo.userData = { p: featured };
+        stage.add(holo);
+        pickables.push(holo);
+      }).catch(() => {});
+
+    // Models standing in the hall: life-size 3D figures that turn to face you as you walk.
+    const plinthMat = track(new THREE.MeshStandardMaterial({ color: '#16130f', metalness: 0.9, roughness: 0.25 }));
+    const plinthGeo = track(new THREE.CylinderGeometry(0.75, 0.85, 0.24, 48));
+    const ringGeo = track(new THREE.TorusGeometry(0.8, 0.018, 6, 96));
+    const standing = products.filter((p) => p.portrait && p !== centre).slice(0, 4);
+    const figureBuild = Promise.all(standing.map(async (p, i) => {
+      const [x, z] = [[-7, -6], [7, -6], [-7, 5], [7, 5]][i];
+      const g = new THREE.Group();
+      g.position.set(x, 0, z);
+      const plinth = new THREE.Mesh(plinthGeo, plinthMat);
+      plinth.position.y = 0.12;
+      g.add(plinth);
+      const ring = new THREE.Mesh(ringGeo, goldMat);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = 0.25;
+      g.add(ring);
+      try {
+        const fig = createPortrait(await loadPortrait(p.handle), { mode: 'cutout', height: 2.35 });
+        if (disposed) return;
+        fig.material.uniforms.bottomFade.value = 0.14;
+        fig.material.uniforms.reveal.value = 0;
+        fig.material.uniforms.time.value = i * 1.7;
+        fig.position.y = 0.24;
+        fig.userData = { p };
+        g.add(fig);
+        pickables.push(fig);
+        portraits.push(fig);
+        figures.push({ mesh: fig, group: g, yaw: 0 });
+      } catch { return; }
+      scene.add(g);
+      stations.push({ p, pos: new THREE.Vector3(x, EYE, z + 3.6), yaw: 0 });
+    }));
     scene.add(stage);
     if (featured) stations.push({ p: featured, pos: new THREE.Vector3(0, EYE, 6.5), yaw: 0 });
 
@@ -291,7 +322,7 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
     const pointer = new THREE.Vector2(-9, -9);
     const ray = new THREE.Raycaster();
     let drag: { x: number; y: number; moved: number } | null = null;
-    let hovered: THREE.Object3D | null = null;
+    let hovered: THREE.Mesh | null = null;
     const onDown = (e: PointerEvent) => { drag = { x: e.clientX, y: e.clientY, moved: 0 }; canvas.setPointerCapture(e.pointerId); };
     const onMove = (e: PointerEvent) => {
       const r = canvas.getBoundingClientRect();
@@ -307,8 +338,8 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
     const onUp = () => {
       if (drag && drag.moved < 6) {
         ray.setFromCamera(pointer, camera);
-        const hit = owner(ray.intersectObjects(pickables, true)[0]?.object ?? null);
-        if (hit) { stopTour(); setSelected(hit.userData.p as StoreProduct); }
+        const hit = ray.intersectObjects(pickables)[0];
+        if (hit) { stopTour(); setSelected(hit.object.userData.p as StoreProduct); }
       }
       drag = null;
     };
@@ -330,7 +361,8 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
     let raf = 0;
     const loop = () => {
       raf = requestAnimationFrame(loop);
-      const dt = Math.min(clock.getDelta(), 0.05);
+      const raw = Math.min(clock.getDelta(), 0.5);
+      const dt = Math.min(raw, 0.05);
       const t = clock.elapsedTime;
       const stops = stations.filter(Boolean);
       if (auto && stops.length) {
@@ -367,46 +399,40 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
 
       if (!drag) {
         ray.setFromCamera(pointer, camera);
-        const hit = owner(ray.intersectObjects(pickables, true)[0]?.object ?? null);
+        const hit = (ray.intersectObjects(pickables)[0]?.object as THREE.Mesh | undefined) ?? null;
         if (hit !== hovered) {
           if (hovered?.userData.edgeMat) (hovered.userData.edgeMat as THREE.LineBasicMaterial).opacity = 0.8;
+          if (hovered && !portraits.includes(hovered as PortraitMesh)) hovered.scale.setScalar(1);
           hovered = hit;
+          if (hovered && !portraits.includes(hovered as PortraitMesh)) hovered.scale.setScalar(1.03);
           if (hovered?.userData.edgeMat) (hovered.userData.edgeMat as THREE.LineBasicMaterial).opacity = 1;
           canvas.style.cursor = hovered ? 'pointer' : '';
         }
       }
-      for (const sp of spinning) {
-        sp.obj.rotation.y = t * 0.45 + sp.phase + (sp.obj === hovered ? Math.sin(t * 3) * 0.05 : 0);
-        sp.obj.position.y = sp.baseY + Math.sin(t * 1.1 + sp.phase) * 0.04;
+      // A 3D photo has no back, so the centre figure sways through ±35° instead of spinning.
+      if (holo) holo.rotation.y = portraits.includes(holo as PortraitMesh) ? Math.sin(t * 0.45) * 0.6 : t * 0.5;
+      for (const f of figures) {
+        // Turn toward the visitor, but only so far — they're photos with depth, not full 3D bodies.
+        const want = Math.atan2(camera.position.x - f.group.position.x, camera.position.z - f.group.position.z);
+        const clamped = Math.max(-0.7, Math.min(0.7, Math.atan2(Math.sin(want), Math.cos(want))));
+        f.yaw += (clamped - f.yaw) * (1 - Math.pow(0.2, dt));
+        f.mesh.rotation.y = f.yaw;
+      }
+      for (const pm of portraits) {
+        const u = pm.material.uniforms;
+        u.time.value += dt;
+        if (u.reveal.value < 1) u.reveal.value = Math.min(1, u.reveal.value + raw * 0.45);
+        u.glow.value += ((pm === hovered ? 1 : 0) - u.glow.value) * (1 - Math.pow(0.02, dt));
       }
       halo.scale.setScalar(1 + Math.sin(t * 2) * 0.015);
       dust.rotation.y = t * 0.008;
       renderer.render(scene, camera);
     };
 
-    Promise.all([build, holoBuild, document.fonts?.ready]).finally(async () => {
+    Promise.all([build, holoBuild, figureBuild, document.fonts?.ready]).finally(() => {
       if (disposed) return;
       setLoading(false);
       loop();
-      // Lighter meshes on phones; centre piece first, then the walls.
-      const cols = window.matchMedia('(pointer: coarse)').matches ? 44 : 60;
-      for (const m of mounts) {
-        if (disposed) return;
-        try {
-          const g = await garmentFor(m.p, m === mounts[0] ? cols + 30 : cols);
-          if (disposed) { disposeObject(g); return; }
-          const holder = new THREE.Group();
-          g.scale.setScalar(m.scale);
-          holder.add(g);
-          holder.position.copy(m.at);
-          holder.userData = { p: m.p };
-          m.parent.add(holder);
-          pickables.push(holder as unknown as THREE.Mesh);
-          spinning.push({ obj: holder, phase: m.phase, baseY: m.at.y });
-          built3d.push(g);
-        } catch { /* keep the poster only */ }
-        await new Promise((r) => setTimeout(r, 16));
-      }
     });
 
     return () => {
@@ -420,7 +446,7 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
       canvas.removeEventListener('pointerup', onUp);
       canvas.removeEventListener('pointercancel', onUp);
       disposables.forEach((d) => d.dispose());
-      built3d.forEach(disposeObject);
+      portraits.forEach((pm) => { pm.geometry.dispose(); pm.material.dispose(); });
       grid.geometry.dispose();
       (grid.material as THREE.Material).dispose();
       renderer.dispose();
@@ -429,12 +455,16 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
 
   return (
     <div className="vstore">
-      <canvas ref={canvasRef} aria-label="3D ENRJI store. Drag to look around, use W A S D or the arrow keys to walk, click any tee to see it." />
-      {loading && <div className="vstore-loading"><span className="display">Opening the store</span><i /></div>}
+      <canvas ref={canvasRef} aria-label="3D ENRJI store. Drag to look around, use W A S D or the arrow keys to walk, click any poster to see the product." />
+      <div className={`vstore-intro${loading ? '' : ' open'}`} aria-hidden={!loading}>
+        <div className="vstore-intro-word display">{'ENRJI'.split('').map((c, i) => <span key={i} style={{ animationDelay: `${0.15 + i * 0.09}s` }}>{c}</span>)}</div>
+        <p className="vstore-intro-sub">{loading ? 'Opening the store' : 'Welcome in'}</p>
+        <i className="vstore-intro-bar" />
+      </div>
       {error && <div className="vstore-loading"><div style={{ textAlign: 'center' }}><p>{error}</p><Link href="/shop" className="btn btn-gold">Shop the collection</Link></div></div>}
       <div className="vstore-hud">
         <p className="eyebrow" style={{ margin: 0 }}>Virtual store</p>
-        <p className="muted" style={{ margin: '6px 0 0', fontSize: 13 }}><b style={{ color: 'var(--text)' }}>Drag</b> to look · <b style={{ color: 'var(--text)' }}>WASD</b> or arrows to walk · <b style={{ color: 'var(--text)' }}>Tap</b> any tee</p>
+        <p className="muted" style={{ margin: '6px 0 0', fontSize: 13 }}><b style={{ color: 'var(--text)' }}>Drag</b> to look · <b style={{ color: 'var(--text)' }}>WASD</b> or arrows to walk · <b style={{ color: 'var(--text)' }}>Tap</b> any piece</p>
       </div>
       <div className="vstore-controls">
         <button className="btn btn-gold btn-sm" onClick={() => (guided ? controls.current?.stopTour() : controls.current?.startTour())}>{guided ? '■ Stop tour' : '▶ Guided tour'}</button>

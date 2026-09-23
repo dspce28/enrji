@@ -15,7 +15,8 @@ The redesigned ENRJI website. It is a **Next.js front end over the live Shopify 
 | Product page | Photo gallery with zoom, colour and size selection with live stock, Add to bag, Buy now, tee ↔ sweatshirt switch, size chart, "notify me on WhatsApp" for sold-out sizes, sticky mobile buy bar, Product structured data |
 | Cart | Slide-out bag, stock re-check before checkout, multi-buy offer note |
 | Trial Room | Upload a photo, live camera or mannequin. On-device body tracking (MediaPipe pose + clothes/skin segmentation) warps the garment onto shoulders, torso and arms, keeps face, hair and hands in front, recolours the shopper's own top where it shows, and carries over the photo's shading. "Print on my clothes" mode; 360° view; save image; add to bag. Photos never leave the browser |
-| Virtual Store | Walkable 3D gallery (Three.js) with the product photography on the walls, rotating 3D garments on plinths, the Live Like Krishna edition centre stage; guided tour; tap to add to bag |
+| Home | 3D hero: the collection worn by real models as 3D photos that turn toward the cursor (or phone tilt), gold dust, auto-advancing slides; scroll-driven horizontal "worn by" gallery; gold cursor, tilting cards, magnetic buttons, clip-path reveals |
+| Virtual Store | Black-and-gold walkable 3D store (Three.js) with an animated entrance; the model photos on the walls have real depth; life-size 3D models on the centre stage and on plinths turn to face you; guided tour; tap anything to add to bag |
 | 360° view | Product pages and the Trial Room show each tee/sweatshirt as a 3D garment in its real colour and print; drag to spin |
 
 ### Trial Room print artwork
@@ -23,6 +24,19 @@ The Trial Room draws each tee or sweatshirt in its real colour with its real pri
 
 - Products without a usable flat-lay (Energy Fade, which is tone-on-tone black, and Healthy Is New Rich) show the slogan typeset in the brand face instead.
 - For sharper results, replace any file with the print artwork from your designer: a transparent PNG trimmed to the print, named `<product-handle>.png` (per colour: `<handle>--<colour>.png`, e.g. `believe--black.png`).
+
+### 3D photos (Home and Virtual Store)
+There is no 3D scan or turntable shoot. Each product's best model photo from the store is turned into a "3D photo" offline:
+depth from Depth Anything V2 Small (Apache-2.0), cut-out from BiRefNet lite (MIT), model photo chosen with MediaPipe pose.
+The results live in `public/store/<handle>.jpg|-depth.png|-mask.png` and `data/portraits.json`; `lib/depthPortrait.ts` renders them.
+They turn about ±35°, not 360°, because a single photo has no back. Re-run after adding products:
+
+```bash
+pip install onnxruntime mediapipe pillow numpy
+# models: onnx-community/depth-anything-v2-small (onnx/model.onnx → depth.onnx),
+#         onnx-community/BiRefNet_lite-ONNX (onnx/model.onnx → birefnet.onnx), pose_landmarker_lite.task
+python3 scripts/depth-portraits.py --models <dir>          # or --only <handle> ...
+```
 
 ## Run locally
 
@@ -64,7 +78,8 @@ lib/catalogue.ts     Shopify feed → typed products (hides internal test produc
 lib/checkout.ts      Shopify cart permalink
 lib/config.ts        store URL, contact details, shipping/returns wording, offers
 lib/garment.ts       garment + print renderer (flat)
-lib/garment3d.ts     3D garment for the 360° view and Virtual Store
+lib/garment3d.ts     3D garment for the 360° view
+lib/depthPortrait.ts 3D photos of the model shots (home hero, Virtual Store)
 lib/bodyTracking.ts  on-device pose + segmentation (models self-hosted by scripts/vision-assets.mjs)
 lib/wornRenderer.ts  WebGL compositor that makes the garment look worn
 data/                catalogue snapshot, Trial Room settings
