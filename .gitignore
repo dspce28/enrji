@@ -1,5 +1,10 @@
 node_modules/
-data/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+.env*.local
 .env
-*.db
-*.db-*
+data/*.db
+prototype/node_modules/
+prototype/data/

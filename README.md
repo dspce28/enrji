@@ -1,76 +1,65 @@
-# ENRJI — futuristic t-shirt store
+# ENRJI® storefront (Next.js)
 
-A complete e-commerce site for graphic tees, with a neon/cyber look:
+The redesigned ENRJI website. It is a **Next.js front end over the live Shopify store**:
 
-- **Storefront**: catalog with search, categories and sorting; product pages with color and size variants and live stock; a cart drawer; guest or account checkout.
-- **Virtual tour** (`#/tour`): a walkable 3D showroom built with Three.js. Drag to look, use WASD/arrow keys (or the on-screen d-pad on touch) to walk, and click any tee to inspect it and add it to the cart. There's also an auto-piloted guided tour.
-- **Try it on** (`#/try-on`): upload a photo, use your camera, or pick the mannequin. You can drag, pinch, scroll or use the sliders to place the tee, or tap two shoulder points and it fits automatically. The "Print on my shirt" mode places only the graphic, and fabric blending keeps the photo's folds and shading. You can download the result as a PNG. **Photos never leave the browser.**
-- **Orders**: stock is reserved at checkout, unpaid orders auto-expire (30 min demo / 60 min Stripe) and release their stock, and every status change goes on a timeline. Status follows a state machine: `pending_payment → paid → processing → shipped → delivered`, plus `cancelled` / `refunded`. Customers can cancel and get a refund until you start packing the order.
-- **Inventory**: per-SKU stock (product × color × size), low-stock thresholds and alerts, restock/adjust/damaged/set-count actions, and a full movement ledger (sales, releases and refunds included).
-- **Payments**: **Stripe Checkout** (a real hosted payment page with a signed webhook and a return-time verification fallback, plus refunds through the Stripe API) and a **demo card processor** for development. Payments are idempotent, and a late payment on an expired order is flagged for manual refund.
-- **Admin console** (`#/admin`): KPIs, 14-day revenue, low stock, top sellers; order management with fulfilment/tracking/refunds; inventory; a product editor with **photo upload per colour**; a payment ledger.
+- **Next.js** renders every page and owns the look: home, shop, collections, product pages, cart, Trial Room, Virtual Store, Our Story, size guide, FAQ, contact.
+- **Shopify** stays the engine: products, prices, stock, checkout (UPI/cards), orders, customer accounts and admin. Nothing is migrated.
+- Products are read from the store's public feed (`/products.json`) and refreshed every 5 minutes. A snapshot in `data/catalogue-snapshot.json` keeps the site up if the store can't be reached.
+- **Add to bag** keeps a cart in the browser; **Checkout** and **Buy now** hand off to Shopify's own checkout through a [cart permalink](https://help.shopify.com/en/manual/products/details/cart-permalink). **Orders placed on staging are real orders** in the live Shopify admin.
 
-The store sells **stock you hold**: the shop only sells what's recorded in inventory, and orders are picked, packed and shipped from your own stock (no print-on-demand).
+## Features
 
-### Product photos
+| | |
+|---|---|
+| Shop | Filters by garment, by ENRJI pillar (mental, emotional, physical, spiritual) and stock; sort by price or newest |
+| Product page | Photo gallery with zoom, colour and size selection with live stock, Add to bag, Buy now, tee ↔ sweatshirt switch, size chart, "notify me on WhatsApp" for sold-out sizes, sticky mobile buy bar, Product structured data |
+| Cart | Slide-out bag, stock re-check before checkout, multi-buy offer note |
+| Trial Room | Upload a photo, use the camera or a mannequin; drag/pinch/rotate or tap two shoulders to fit; fabric blend; "print on what I'm wearing" mode; save image; add to bag. Photos never leave the browser |
+| Virtual Store | Walkable 3D gallery (Three.js) with the product photography on the walls and the Live Like Krishna edition centre stage; guided tour; tap a poster to add to bag |
 
-In **Admin → Products → Edit**, upload one front photo per colour (PNG/JPEG/WebP, ≤ 8 MB). The photo is used everywhere: shop cards, the product page, the cart, orders, the 3D store walls and the try-on overlay.
+### Trial Room print artwork
+Until real artwork is supplied, the Trial Room typesets each slogan in the brand face on a drawn garment. To use the real print, save it as a **transparent PNG trimmed to the print** at `public/prints/<product-handle>.png` (e.g. `public/prints/i-am-energy.png`) and redeploy. Garment colour and print colour overrides live in `data/tryon.ts`.
 
-For the try-on to look right, shoot each shirt as a **front flat-lay, cropped to the shirt, with the background removed (transparent PNG)**. A photo with a white background shows up as a white rectangle over the customer's photo. Shoulder auto-fit assumes the shoulder seams sit about 20% and 80% across and 12% down the image.
+## Run locally
 
-Until a colour has a photo, the store shows placeholder artwork drawn in code (`public/js/shirt.js`). The 12 seeded products are demo data: replace or archive them before launch.
-
-## Run it
-
-Requires **Node 22.13+** (it uses the built-in `node:sqlite`, so there's no native build step).
+Node 20.9 or newer.
 
 ```bash
 npm install
-npm start            # http://localhost:3000
-npm test             # API tests: checkout, payments, webhooks, inventory, auth
+npm run dev          # http://localhost:3000
+npm run build && npm start
+npm run lint         # TypeScript check
+npm run snapshot     # refresh data/catalogue-snapshot.json from the live store
 ```
 
-On first start the database is created and seeded with 12 products and an admin account:
-`admin@enrji.local` / `admin1234` (override with `ADMIN_EMAIL` / `ADMIN_PASSWORD`).
+Copy `.env.example` to `.env.local` to change the store or site URL.
 
-Demo card: `4242 4242 4242 4242`, any future expiry, any CVC. `4000 0000 0000 0002` is always declined.
+## Deploy to enrji.logicubeit.com
 
-## Turning on real payments (Stripe)
+**Option A: Vercel (simplest)**
+1. Import this repository in Vercel. The framework is detected automatically.
+2. Set the environment variables from `.env.example`.
+3. Project → Settings → Domains → add `enrji.logicubeit.com`, then add the DNS record Vercel shows (a CNAME for `enrji`) at the DNS provider for logicubeit.com.
 
-1. Create a Stripe account and copy the secret key: `STRIPE_SECRET_KEY=sk_test_...`
-2. Set `BASE_URL` to the site's public URL.
-3. Add a webhook endpoint at `https://<your-domain>/api/payments/stripe/webhook` for
-   `checkout.session.completed` and `checkout.session.expired`, and set `STRIPE_WEBHOOK_SECRET`.
-   Locally: `stripe listen --forward-to localhost:3000/api/payments/stripe/webhook`.
-4. In production (`NODE_ENV=production`), demo payments are off unless `DEMO_PAYMENTS=true`.
+**Option B: your own server**
+```bash
+npm ci && npm run build
+PORT=3000 npm start    # run under pm2/systemd, behind nginx with HTTPS
+```
 
-Card data never touches this server: Stripe hosts the payment page.
+## Moving to enrji.in after approval
+1. In Shopify, add a subdomain such as `shop.enrji.in` for the store (checkout and customer accounts live there).
+2. Set `NEXT_PUBLIC_SHOPIFY_STORE_URL=https://shop.enrji.in`, `NEXT_PUBLIC_SITE_URL=https://enrji.in`, `ALLOW_INDEXING=true`.
+3. Point `enrji.in` at this site. Product URLs (`/products/<handle>`) and collection URLs match Shopify's, so existing links and search rankings carry over.
 
 ## Layout
-
 ```
-server/
-  index.js          boot, env config
-  app.js            express app, security headers, CSRF guard, error handling
-  db.js             schema + seed data
-  auth.js           scrypt passwords, cookie sessions, rate limit
-  orders.js         pricing, stock reservation, order state machine, expiry
-  payments.js       demo processor, Stripe REST client, webhook signature check
-  routes/store.js   catalog, cart quote, auth, checkout, customer orders, webhooks
-  routes/admin.js   stats, products, inventory, orders, payments
-public/
-  index.html, css/style.css
-  js/shirt.js       procedural t-shirt SVG renderer (shared with server)
-  js/app.js         hash router, header, cart drawer
-  js/views/*.js     home, shop, product, checkout, order, account, tour, tryon, admin
-test/api.test.js
+app/                 pages (App Router) + api/stock
+components/          header, cart, product card/buy box, gallery, TrialRoom, VirtualStore
+lib/catalogue.ts     Shopify feed → typed products (hides internal test products)
+lib/checkout.ts      Shopify cart permalink
+lib/config.ts        store URL, contact details, shipping/returns wording, offers
+lib/garment.ts       garment + print renderer for the Trial Room
+data/                catalogue snapshot, Trial Room settings
+prototype/           earlier Express prototype (reference only, not deployed)
 ```
-
-## Before going live, you still need
-
-- **Hosting with a persistent disk.** The database (`DATABASE_PATH`) and product photos (`UPLOAD_DIR`, default `data/uploads`) are files. Serverless platforms (e.g. Vercel functions) wipe them, so use a VM/container host (Fly.io, Railway, Render, a VPS) with a volume, and back up the `data/` folder.
-- **Transactional email** (order confirmation and shipping notifications). Nothing is sent right now: customers see status on the order page.
-- **Real tax and shipping rates.** They're currently a flat 8% tax and a $6 flat rate (free over $75) in `server/orders.js`. Real tax depends on jurisdiction (Stripe Tax can handle it).
-- **Shipping labels.** Fulfilment is manual: pack the order, buy a label with your carrier, then paste the tracking number when you mark the order *shipped*.
-- **Your real catalogue**: product photos, stock counts (use *Set count* in Inventory after a stocktake) and prices.
-- **Legal pages**: privacy policy, terms, returns.

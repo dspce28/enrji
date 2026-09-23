@@ -1,19 +1,30 @@
 {
-  "name": "enrji",
-  "version": "1.0.0",
-  "description": "ENRJI — futuristic t-shirt store with 3D virtual tour, photo try-on, orders, inventory and payments",
-  "type": "module",
+  "name": "enrji-web",
+  "version": "0.1.0",
   "private": true,
-  "engines": {
-    "node": ">=22.13"
-  },
+  "description": "ENRJI storefront — Next.js front end over the live Shopify store",
   "scripts": {
-    "start": "node --disable-warning=ExperimentalWarning server/index.js",
-    "dev": "node --disable-warning=ExperimentalWarning --watch server/index.js",
-    "test": "node --disable-warning=ExperimentalWarning --test test/*.test.js"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "tsc --noEmit",
+    "snapshot": "node scripts/snapshot-catalogue.mjs"
+  },
+  "engines": {
+    "node": ">=20.9"
   },
   "dependencies": {
-    "express": "^5.2.1",
+    "next": "^16.3.6",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "server-only": "^0.0.1",
     "three": "^0.186.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.186.0",
+    "typescript": "^5.9.3"
   }
 }
