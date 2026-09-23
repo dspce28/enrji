@@ -33,7 +33,7 @@ function hexDist(a: string, b: string) {
   return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]);
 }
 
-async function toJpeg(src: CanvasImageSource & { width: number; height: number }, w: number, h: number): Promise<{ blob: Blob; url: string }> {
+async function toJpeg(src: CanvasImageSource & { width: number; height: number }, w: number, h: number): Promise<{ blob: Blob; url: string; w: number; h: number }> {
   const k = Math.min(1, MAX_SIDE / Math.max(w, h));
   const c = document.createElement('canvas');
   c.width = Math.round(w * k); c.height = Math.round(h * k);
@@ -41,7 +41,7 @@ async function toJpeg(src: CanvasImageSource & { width: number; height: number }
   g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
   g.drawImage(src, 0, 0, c.width, c.height);
   const blob = await new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('encode'))), 'image/jpeg', 0.92));
-  return { blob, url: URL.createObjectURL(blob) };
+  return { blob, url: URL.createObjectURL(blob), w: c.width, h: c.height };
 }
 
 /** The garment on white, as the try-on model expects: the real garment photo, or a clean render in the chosen colour. */
@@ -79,7 +79,7 @@ export function TrialRoom({ products, samples, initial }: { products: TryProduct
   const { add, setOpen, toast } = useCart();
   const [product, setProduct] = useState<TryProduct>(() => products.find((p) => p.handle === initial) ?? products[0]);
   const [color, setColor] = useState<string | null>(product.colors[0] ?? null);
-  const [photo, setPhoto] = useState<{ id: string; blob: Blob; url: string } | null>(null);
+  const [photo, setPhoto] = useState<{ id: string; blob: Blob; url: string; w: number; h: number } | null>(null);
   const [result, setResult] = useState<string | null>(null);
   const [busy, setBusy] = useState<TryOnStatus | null>(null);
   const [elapsed, setElapsed] = useState(0);
@@ -173,7 +173,9 @@ export function TrialRoom({ products, samples, initial }: { products: TryProduct
     <div className="ai-tryon">
       <div className="ai-stage-wrap">
         <p className="eyebrow">Step 1 · Your photo</p>
-        <div className={`ai-stage${busy ? ' busy' : ''}`}>
+        {/* The frame takes the photo's own shape and fits the screen both ways, so nothing is ever cropped. */}
+        <div className={`ai-stage${busy ? ' busy' : ''}`}
+          style={photo ? { aspectRatio: `${photo.w} / ${photo.h}`, width: `min(100%, 640px, calc(76svh * ${(photo.w / photo.h).toFixed(4)}))` } : undefined}>
           {!photo && (
             <label className="ai-drop" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); fromFile(e.dataTransfer.files[0]); }}>
               <input type="file" accept="image/*" hidden onChange={(e) => { fromFile(e.target.files?.[0]); e.target.value = ''; }} />
