@@ -41,9 +41,10 @@ const MANNEQUIN: Body = {
 };
 
 // The mannequin wears a plain grey tee, so it is re-dressed exactly the way a photo is.
-const MANNEQUIN_TEE = new Path2D('M382 402 Q450 446 518 402 L612 424 Q668 470 704 562 L652 606 Q628 568 600 530 Q592 700 590 868 L310 868 Q308 700 300 530 Q272 568 248 606 L196 562 Q232 470 288 424 Z');
+const MANNEQUIN_TEE_PATH = 'M382 402 Q450 446 518 402 L612 424 Q668 470 704 562 L652 606 Q628 568 600 530 Q592 700 590 868 L310 868 Q308 700 300 530 Q272 568 248 606 L196 562 Q232 470 288 424 Z';
 
 function drawMannequin(): { canvas: HTMLCanvasElement; masks: Masks } {
+  const MANNEQUIN_TEE = new Path2D(MANNEQUIN_TEE_PATH);   // browser-only, so created here rather than at load
   const c = document.createElement('canvas');
   c.width = 900; c.height = 1200;
   const g = c.getContext('2d')!;
