@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { drawGarment, type GarmentKind } from '@/lib/garment';
+import { drawGarment, loadHeavyFont, type GarmentKind } from '@/lib/garment';
 import { buildGarment3D, disposeObject } from '@/lib/garment3d';
 
 export interface Garment360Props {
@@ -121,6 +121,7 @@ export default function Garment360({ kind, color, ink, slogan, artwork, classNam
     (async () => {
       const s = sceneRef.current;
       if (!s) return;
+      await loadHeavyFont();
       await document.fonts?.ready;
       let art: HTMLImageElement | null = null;
       if (artwork) {

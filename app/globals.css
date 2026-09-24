@@ -21,9 +21,9 @@
   --ok: #3d7547;
   --radius: 2px;
   --radius-sm: 2px;
-  --font-display: 'Cormorant Garamond', 'Cormorant', Georgia, serif;
-  --font-body: 'Jost', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-display: var(--f-display), 'Cormorant Garamond', Georgia, serif;
+  --font-body: var(--f-body), 'Jost', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: var(--f-display), 'Cormorant Garamond', Georgia, serif;
   --ease: cubic-bezier(0.2, 0.7, 0.1, 1);
   --hop: cubic-bezier(0.87, 0, 0.13, 1);
   --gutter: clamp(18px, 4vw, 64px);
@@ -119,6 +119,10 @@ button { font: inherit; color: inherit; letter-spacing: inherit; }
 .nav a { position: relative; white-space: nowrap; font-size: 11px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; color: var(--text); padding: 6px 0; }
 .nav a::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: currentColor; transform: scaleX(0); transform-origin: right; transition: transform .45s var(--ease); }
 .nav a:hover::after, .nav a[aria-current='page']::after { transform: scaleX(1); transform-origin: left; }
+/* Shop is the one link that should always stand out. */
+.nav a.nav-primary { font-weight: 600; }
+.nav a.nav-primary::after { transform: scaleX(1); background: var(--gold); height: 2px; }
+.mobile-menu a.nav-primary { font-weight: 600; }
 .header-actions { justify-self: end; display: flex; gap: 28px; align-items: center; }
 .icon-btn { position: relative; width: 40px; height: 40px; display: grid; place-items: center; background: none; border: 0; cursor: pointer; border-radius: 50%; transition: background .2s; }
 .icon-btn:hover { background: var(--line); }
@@ -176,6 +180,9 @@ button { font: inherit; color: inherit; letter-spacing: inherit; }
 .card-media { position: relative; aspect-ratio: 3 / 4; overflow: hidden; background: var(--surface); }
 .card-media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 1.1s var(--ease), opacity .6s var(--ease); }
 .card-media img.alt { opacity: 0; }
+/* Garment cut-outs sit on white; multiply melts the white into the card's ivory. */
+.card-media.flat { background: #efe8dc; }
+.card-media img.flat { object-fit: contain; padding: 7% 6% 5%; mix-blend-mode: multiply; }
 .card:hover .card-media img { transform: scale(1.035); }
 .card:hover .card-media img.alt { opacity: 1; }
 .card-flags { position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; z-index: 1; flex-wrap: wrap; }
@@ -240,6 +247,12 @@ button { font: inherit; color: inherit; letter-spacing: inherit; }
 /* ---------- shop ---------- */
 .page-head { padding: clamp(48px, 8vw, 110px) 0 clamp(24px, 4vw, 48px); }
 .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 32px; position: sticky; top: 72px; z-index: 5; padding: 12px 0; background: linear-gradient(var(--bg) 70%, transparent); }
+/* Phones: one row that scrolls sideways, so the pinned bar never covers the products. */
+@media (max-width: 760px) {
+  .filters { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; top: 64px; margin: 0 calc(-1 * var(--gutter)) 20px; padding: 10px var(--gutter); background: var(--bg); }
+  .filters::-webkit-scrollbar { display: none; }
+  .filters > * { flex: none; }
+}
 .pill { height: 38px; padding: 0 18px; border-radius: 0; border: 1px solid var(--line-2); background: transparent; cursor: pointer; font-size: 11px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); transition: all .25s; }
 .pill:hover { color: var(--text); border-color: var(--text); }
 .pill[aria-pressed='true'] { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
@@ -498,6 +511,9 @@ input[type='checkbox'] { accent-color: var(--gold); }
 .ehero-links { margin-top: 26px; display: flex; gap: 40px; justify-content: center; pointer-events: auto; }
 .ehero-links a { font-size: 11px; letter-spacing: .28em; text-transform: uppercase; padding-bottom: 6px; border-bottom: 1px solid rgba(251, 248, 242, .6); transition: border-color .3s; }
 .ehero-links a:hover { border-color: #fbf8f2; }
+.ehero-links a.ehero-shop { padding: 12px 22px; border: 1px solid #fbf8f2; background: #fbf8f2; color: var(--ink); }
+.ehero-links a.ehero-shop:hover { background: transparent; color: #fbf8f2; }
+.ehero-links { align-items: center; flex-wrap: wrap; row-gap: 14px; }
 .ehero-nav { position: absolute; z-index: 3; right: var(--gutter); bottom: 26px; display: flex; align-items: center; gap: 14px; font-size: 11px; letter-spacing: .2em; }
 .ehero-nav span { display: inline-flex; align-items: center; gap: 10px; }
 .ehero-nav i { width: 36px; height: 1px; background: rgba(251, 248, 242, .6); }
@@ -584,6 +600,9 @@ input[type='checkbox'] { accent-color: var(--gold); }
 .studio-slide img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; pointer-events: none; }
 .studio-slide-name { position: absolute; left: 0; right: 0; bottom: -28px; text-align: center; font-size: 10px; letter-spacing: .24em; text-transform: uppercase; color: var(--muted); opacity: 0; transition: opacity .4s; }
 .studio-slide:hover .studio-slide-name { opacity: 1; }
+.studio-slide-name b { font-weight: 500; color: var(--gold); }
+/* No hover on phones: always show what each photo is and that it can be bought. */
+@media (hover: none) { .studio-slide-name { opacity: 1; } }
 @media (max-width: 660px) {
   .studio-sidebar { padding: .5em 1.5em; }
   .studio-slide { width: 240px; height: 310px; }

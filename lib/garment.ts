@@ -57,6 +57,17 @@ export interface DrawOptions {
 }
 
 /** Render the garment at `scale` × (400×440) px, transparent background. */
+/** The heavy display face. next/font self-hosts it under a generated name, published as --f-heavy. */
+export function heavyFamily() {
+  if (typeof document === 'undefined') return 'Unbounded';
+  return getComputedStyle(document.documentElement).getPropertyValue('--f-heavy').trim() || 'Unbounded';
+}
+
+/** Canvas text doesn't trigger font downloads, so fetch the heavy face before drawing with it. */
+export async function loadHeavyFont() {
+  try { await document.fonts.load(`800 64px ${heavyFamily()}`); } catch { /* fall back to Arial Black */ }
+}
+
 export function drawGarment(spec: GarmentSpec, opts: DrawOptions = {}): HTMLCanvasElement {
   const { scale = 2.5, printOnly = false, noPrint = false, shading = true, bleed = false, bodyless = false } = opts;
   const c = document.createElement('canvas');
@@ -111,7 +122,7 @@ export function drawGarment(spec: GarmentSpec, opts: DrawOptions = {}): HTMLCanv
     g.drawImage(a, PRINT_BOX.cx - w / 2, PRINT_BOX.cy - h / 2, w, h);
   } else {
     const lines = wrap(spec.slogan);
-    const font = (px: number) => `800 ${px}px Unbounded, "Arial Black", Impact, sans-serif`;
+    const font = (px: number) => `800 ${px}px ${heavyFamily()}, "Arial Black", Impact, sans-serif`;
     let size = 46;
     g.font = font(size);
     const widest = () => Math.max(...lines.map((l) => g.measureText(l).width));

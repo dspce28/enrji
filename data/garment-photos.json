@@ -1,19 +1,16 @@
 {
  "accept-appreciate": {
   "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T130608.221.png?v=1782632214",
-  "color": "#14364d"
+  "color": "#14364c"
  },
  "be-the-change": {
   "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-27T183151.810.png?v=1782565337",
   "color": "#363023"
  },
- "be-the-change-sweatshirt": {
-  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-27T193104.061.png?v=1782568901",
-  "color": "#1c1b15"
- },
  "believe": {
   "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitleddesign_77.png?v=1789410257",
-  "color": "#152a3e"
+  "color": "#13273b",
+  "card": false
  },
  "business-is-seva": {
   "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_1_87de5d28-5fa2-49e0-b024-1344cb6204ed.png?v=1787292442",
@@ -27,13 +24,9 @@
   "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-27T130239.814.png?v=1782545577",
   "color": "#151411"
  },
- "energy-step-sweatshirt": {
-  "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-27T144622.469.png?v=1782551806",
-  "color": "#14130d"
- },
  "energy-white": {
   "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-27T163155.011.png?v=1782558131",
-  "color": "#1f1c16"
+  "color": "#181816"
  },
  "family-is-my-strength": {
   "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T201909.869.png?v=1782658168",
@@ -53,7 +46,7 @@
  },
  "grateful-gtb": {
   "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T095801.396.png?v=1782620900",
-  "color": "#d2c2a5"
+  "color": "#dfceb5"
  },
  "grateful-gtb-sweatshirt": {
   "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T102831.067.png?v=1782622733",
@@ -65,7 +58,7 @@
  },
  "health-is-my-new-religion": {
   "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/ChatGPT_Image_Jun_28_2026_07_17_59_PM.png?v=1782654505",
-  "color": "#272f42"
+  "color": "#262f41"
  },
  "healthy-is-new-rich-sweatshirt": {
   "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T213039.569.png?v=1782662459",
@@ -73,7 +66,7 @@
  },
  "i-am-energy-sweatshirt": {
   "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/ChatGPT_Image_Jun_28_2026_05_03_24_PM.png?v=1782646423",
-  "color": "#1d2836"
+  "color": "#1c2735"
  },
  "love-is-my-superpower": {
   "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T115220.736.png?v=1782627767",
@@ -81,7 +74,7 @@
  },
  "love-is-my-superpower-sweatshirt": {
   "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitleddesign-2026-06-28T122656.763.png?v=1782630020",
-  "color": "#0b4660"
+  "color": "#0b4661"
  },
  "manifesting": {
   "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-27T235710.531.png?v=1782584850",
@@ -97,7 +90,7 @@
  },
  "manifesting-sweatshirt": {
   "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T005604.557.png?v=1782588377",
-  "color": "#cec8bb"
+  "color": "#cfc8bc"
  },
  "massive-action": {
   "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T140617.210.png?v=1782635797",
@@ -121,11 +114,11 @@
  },
  "money-is-energy-sweatshirt": {
   "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T140756.053.png?v=1782635932",
-  "color": "#674829"
+  "color": "#654727"
  },
  "never-give-up-sweatshirt": {
   "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-27T233350.355.png?v=1782583447",
-  "color": "#262420"
+  "color": "#272521"
  },
  "selling-is-serving-sweatshirt": {
   "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_11.png?v=1787297822",
@@ -137,7 +130,8 @@
  },
  "surrender-smile-rise": {
   "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitleddesign_72_7832560e-a9a4-47c5-98b0-76aac1a2680e.png?v=1789408528",
-  "color": "#222f42"
+  "color": "#202d3e",
+  "card": false
  },
  "tathastu": {
   "src": "https://cdn.shopify.com/s/files/1/0749/2881/6356/files/Untitled_design_-_2026-06-28T152049.732.png?v=1782640310",

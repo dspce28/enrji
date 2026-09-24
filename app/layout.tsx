@@ -6,6 +6,13 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { SiteChrome } from '@/components/SiteChrome';
 import { SITE_URL, MULTIBUY, PROMISES } from '@/lib/config';
+import { Cormorant_Garamond, Jost, Unbounded } from 'next/font/google';
+
+// Self-hosted with the site (no render-blocking request to Google), swapped in when ready.
+const display = Cormorant_Garamond({ subsets: ['latin'], weight: ['400', '500', '600'], style: ['normal', 'italic'], variable: '--f-display', display: 'swap' });
+const body = Jost({ subsets: ['latin'], weight: ['300', '400', '500'], variable: '--f-body', display: 'swap' });
+// Only drawn onto canvases (3D store labels, garment renders), so it isn't preloaded.
+const heavy = Unbounded({ subsets: ['latin'], weight: ['800'], variable: '--f-heavy', display: 'swap', preload: false });
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -29,13 +36,9 @@ const announcements = [
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en-IN">
+    <html lang="en-IN" className={`${display.variable} ${body.variable} ${heavy.variable}`}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link rel="preconnect" href="https://cdn.shopify.com" crossOrigin="" />
-        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500&family=Unbounded:wght@800&display=swap" />
       </head>
       <body>
         <CartProvider>

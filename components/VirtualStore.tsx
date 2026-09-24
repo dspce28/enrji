@@ -7,6 +7,7 @@ import { useCart } from './cart';
 import { cdn, inr, titleCase } from '@/lib/format';
 import { Price } from './Price';
 import { createPortrait, loadPortrait, type PortraitMesh } from '@/lib/depthPortrait';
+import { heavyFamily, loadHeavyFont } from '@/lib/garment';
 
 export interface StoreProduct {
   handle: string;
@@ -137,10 +138,14 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
       scene.add(ring);
     }
 
-    // Brand wall.
-    const sign = new THREE.Mesh(track(new THREE.PlaneGeometry(9, 2.25)), track(new THREE.MeshBasicMaterial({ map: track(textTexture('ENRJI', { w: 1024, h: 256, font: '800 190px Unbounded, Arial Black, sans-serif', color: '#f2d38c', glow: GOLD })), transparent: true, toneMapped: false })));
-    sign.position.set(0, 6.75, -ROOM + 0.05);
-    scene.add(sign);
+    // Brand wall (drawn once the heavy face has arrived).
+    const heavyReady = loadHeavyFont();
+    heavyReady.then(() => {
+      if (disposed) return;
+      const sign = new THREE.Mesh(track(new THREE.PlaneGeometry(9, 2.25)), track(new THREE.MeshBasicMaterial({ map: track(textTexture('ENRJI', { w: 1024, h: 256, font: `800 190px ${heavyFamily()}, Arial Black, sans-serif`, color: '#f2d38c', glow: GOLD })), transparent: true, toneMapped: false })));
+      sign.position.set(0, 6.75, -ROOM + 0.05);
+      scene.add(sign);
+    });
     const tag = new THREE.Mesh(track(new THREE.PlaneGeometry(9, 0.6)), track(new THREE.MeshBasicMaterial({ map: track(textTexture('FEEL IT · LIVE IT', { w: 1024, h: 72, font: '600 44px Inter, sans-serif', color: '#a29b90' })), transparent: true, toneMapped: false })));
     tag.position.set(0, 5.45, -ROOM + 0.05);
     scene.add(tag);
@@ -174,6 +179,7 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
     const places = slots(wall.length);
 
     const build = Promise.all(wall.slice(0, places.length).map(async (p, i) => {
+      await heavyReady;
       const s = places[i];
       const g = new THREE.Group();
       g.position.set(s.x, 0, s.z);
@@ -205,7 +211,7 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
       poster.userData = { p, edgeMat };
       g.add(poster);
       pickables.push(poster);
-      const label = new THREE.Mesh(labelGeo, track(new THREE.MeshBasicMaterial({ map: track(textTexture(`${titleCase(p.baseName).toUpperCase()}  ·  ${inr(p.price)}`, { w: 1024, h: 200, font: '700 64px Unbounded, Arial Black, sans-serif', color: '#f4efe6' })), transparent: true, toneMapped: false })));
+      const label = new THREE.Mesh(labelGeo, track(new THREE.MeshBasicMaterial({ map: track(textTexture(`${titleCase(p.baseName).toUpperCase()}  ·  ${inr(p.price)}`, { w: 1024, h: 200, font: `700 64px ${heavyFamily()}, Arial Black, sans-serif`, color: '#f4efe6' })), transparent: true, toneMapped: false })));
       label.position.set(0, 0.62, 0.06);
       g.add(label);
       const spot = new THREE.Mesh(track(new THREE.CircleGeometry(1.2, 48)), track(new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.08, toneMapped: false })));

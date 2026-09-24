@@ -8,7 +8,7 @@ import { accountUrl } from '@/lib/config';
 
 const LEFT = [
   { href: '/', label: 'Home' },
-  { href: '/shop', label: 'Shop' },
+  { href: '/shop', label: 'Shop', primary: true },
   { href: '/collections/sweatshirts', label: 'Sweatshirts' },
   { href: '/collections/tees', label: 'Tees' },
   { href: '/lookbook', label: 'Lookbook' },
@@ -52,7 +52,7 @@ export function Header() {
               <svg viewBox="0 0 24 24"><path d="M4 9h16M4 15h16" /></svg>
             </button>
             <nav className="nav" aria-label="Shop">
-              {LEFT.map((n) => <Link key={n.href} href={n.href} aria-current={isCurrent(path, n.href) ? 'page' : undefined}>{n.label}</Link>)}
+              {LEFT.map((n) => <Link key={n.href} href={n.href} className={'primary' in n ? 'nav-primary' : undefined} aria-current={isCurrent(path, n.href) ? 'page' : undefined}>{n.label}</Link>)}
             </nav>
           </div>
           <Link href="/" className="wordmark" aria-label="ENRJI home">ENRJI</Link>
@@ -78,7 +78,7 @@ export function Header() {
           <button className="icon-btn" onClick={() => setMenu(false)} aria-label="Close menu"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
         </div>
         <nav aria-label="Mobile">
-          {NAV.map((n) => <Link key={n.href} href={n.href}>{n.label}</Link>)}
+          {NAV.map((n) => <Link key={n.href} href={n.href} className={'primary' in n ? 'nav-primary' : undefined}>{n.label}</Link>)}
           <a href={accountUrl}>Account</a>
         </nav>
       </div>

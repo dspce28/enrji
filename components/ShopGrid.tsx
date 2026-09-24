@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { Suspense, useMemo } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { Product, Pillar } from '@/lib/catalogue';
 import { ProductCard } from './ProductCard';
@@ -9,8 +9,22 @@ export interface ShopItem { p: Product; pillar: Pillar | null }
 
 const PILLAR_LABELS: Record<Pillar, string> = { mental: 'Mental', emotional: 'Emotional', physical: 'Physical', spiritual: 'Spiritual' };
 
-export function ShopGrid({ items, fixedKind }: { items: ShopItem[]; fixedKind?: 'tee' | 'sweatshirt' }) {
-  const params = useSearchParams();
+type GridProps = { items: ShopItem[]; fixedKind?: 'tee' | 'sweatshirt' };
+const NO_FILTERS = new URLSearchParams();
+
+/**
+ * Filters live in the URL, which is only known in the browser. The server renders the full grid with no
+ * filters (so the page arrives complete and nothing jumps), then the browser applies any from the URL.
+ */
+export function ShopGrid(props: GridProps) {
+  return <Suspense fallback={<Grid {...props} params={NO_FILTERS} />}><LiveGrid {...props} /></Suspense>;
+}
+
+function LiveGrid(props: GridProps) {
+  return <Grid {...props} params={useSearchParams()} />;
+}
+
+function Grid({ items, fixedKind, params }: GridProps & { params: URLSearchParams | ReturnType<typeof useSearchParams> }) {
   const router = useRouter();
   const path = usePathname();
   const kind = fixedKind ?? (params.get('kind') as 'tee' | 'sweatshirt' | null);

@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { Suspense } from 'react';
 import { getProducts, pillarOf, type Product } from '@/lib/catalogue';
 import { ShopGrid } from '@/components/ShopGrid';
 
@@ -32,9 +31,7 @@ export default async function Collection({ params }: { params: Promise<{ handle:
         <h1 className="display h1" style={{ marginTop: 14 }}>{c.title}</h1>
         <p className="lead" style={{ marginTop: 18 }}>{c.lead}</p>
       </header>
-      <Suspense>
-        <ShopGrid items={products.map((p) => ({ p, pillar: pillarOf(p) }))} fixedKind={c.kind} />
-      </Suspense>
+      <ShopGrid items={products.map((p) => ({ p, pillar: pillarOf(p) }))} fixedKind={c.kind} />
     </div>
   );
 }

@@ -15,9 +15,19 @@ const HOLD = 6500;
 export function EditorialHero({ pairs, title, sub }: { pairs: [HeroFrame, HeroFrame][]; title: string; sub: string }) {
   const [i, setI] = useState(0);
   const [prev, setPrev] = useState<number | null>(null);
+  // Only the first pair loads with the page; the rest follow once it has finished loading.
+  const [rest, setRest] = useState(false);
+  useEffect(() => {
+    const go = () => setTimeout(() => setRest(true), 800);
+    if (document.readyState === 'complete') { const t = go(); return () => clearTimeout(t); }
+    let t: ReturnType<typeof setTimeout>;
+    const on = () => { t = go(); };
+    window.addEventListener('load', on, { once: true });
+    return () => { window.removeEventListener('load', on); clearTimeout(t); };
+  }, []);
 
   useEffect(() => {
-    if (pairs.length < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (!rest || pairs.length < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const t = setTimeout(() => go((i + 1) % pairs.length), HOLD);
     return () => clearTimeout(t);
   });
@@ -36,8 +46,8 @@ export function EditorialHero({ pairs, title, sub }: { pairs: [HeroFrame, HeroFr
             onAnimationEnd={() => { if (n === i) setPrev(null); }}>
             {pair.map((f, k) => (
               <Link key={k} href={f.href} className="ehero-frame" tabIndex={n === i ? 0 : -1}>
-                <img src={cdn(f.src, 1200)} srcSet={srcSet(f.src, [600, 900, 1200, 1600])} sizes="(max-width: 760px) 100vw, 50vw" alt={f.alt}
-                  loading="eager" fetchPriority={n === 0 ? 'high' : 'low'} />
+                {(n === 0 || rest) && <img src={cdn(f.src, 1200)} srcSet={srcSet(f.src, [600, 900, 1200, 1600])} sizes="(max-width: 760px) 100vw, 50vw" alt={f.alt}
+                  loading={k === 0 ? 'eager' : 'lazy'} fetchPriority={n === 0 && k === 0 ? 'high' : 'low'} />}
                 <span className="ehero-cap">{f.caption}</span>
               </Link>
             ))}
@@ -48,9 +58,9 @@ export function EditorialHero({ pairs, title, sub }: { pairs: [HeroFrame, HeroFr
         <p className="ehero-sub">{sub}</p>
         <h1 className="ehero-title">{title}</h1>
         <div className="ehero-links">
+          <Link href="/shop" className="ehero-shop">Shop the collection</Link>
           <Link href="/collections/sweatshirts">Sweatshirts</Link>
           <Link href="/collections/tees">Tees</Link>
-          <Link href="/lookbook">Lookbook</Link>
         </div>
       </div>
       {pairs.length > 1 && (

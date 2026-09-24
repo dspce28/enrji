@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
-import { cdn } from '@/lib/format';
+import { cdn, srcSet } from '@/lib/format';
 import { FlairButton } from './FlairButton';
 import { Cursor } from './Cursor';
 
@@ -97,7 +97,7 @@ export function Studio({ looks }: { looks: StudioLook[] }) {
             <span className="studio-logo-mark">ENRJI</span>
             <span className="studio-logo-sub">Feel it · Live it</span>
           </Link>
-          <FlairButton href="/shop">Explore Catalog <span aria-hidden>↑</span></FlairButton>
+          <FlairButton href="/shop">Shop the collection <span aria-hidden>↑</span></FlairButton>
           <FlairButton href="/lookbook/energies" flair="flair-gold">Four <em>Energies</em></FlairButton>
         </div>
       </div>
@@ -105,8 +105,8 @@ export function Studio({ looks }: { looks: StudioLook[] }) {
         {looks.map((l, i) => (
           <Link key={i} href={`/products/${l.handle}`} className="studio-slide" draggable={false} aria-label={l.name}
             onClick={(e) => { if (Math.abs(target.current - current.current) > 30) e.preventDefault(); }}>
-            <img src={cdn(l.src, 900)} alt={`${l.name}, worn`} draggable={false} loading={i < 8 ? 'eager' : 'lazy'} />
-            <span className="studio-slide-name">{l.name}</span>
+            <img src={cdn(l.src, 900)} srcSet={srcSet(l.src, [480, 720, 960, 1280])} sizes="(max-width: 760px) 220px, 612px" alt={`${l.name}, worn`} draggable={false} loading={i < 5 ? 'eager' : 'lazy'} />
+            <span className="studio-slide-name">{l.name} <b>· Shop</b></span>
           </Link>
         ))}
       </div>

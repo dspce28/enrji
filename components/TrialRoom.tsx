@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { drawGarment, GARMENT_COLORS, type GarmentKind } from '@/lib/garment';
+import { drawGarment, loadHeavyFont, GARMENT_COLORS, type GarmentKind } from '@/lib/garment';
 import { aiTryOn, type TryOnStatus } from '@/lib/hfTryon';
 import { buildMask, padTo34, preloadMaskModels, type TryOnMask } from '@/lib/tryonMask';
 import { overlayPrint } from '@/lib/printOverlay';
@@ -52,6 +52,7 @@ async function garmentImage(p: TryProduct, color: string | null, hex: string): P
     const r = await fetch(p.garmentPhoto.src);
     if (r.ok) return r.blob();
   }
+  await loadHeavyFont();
   await document.fonts?.ready;
   let art: HTMLImageElement | null = null;
   const src = (color && p.artwork[color]) || p.artwork['*'];
