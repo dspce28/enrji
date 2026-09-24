@@ -36,6 +36,7 @@ Photos are cropped to many frame shapes. `scripts/focal-points.py` finds the fac
 - Home (`components/HomeCinematic.tsx`): the page slides up over the hero as you scroll, the brand statement lights up word by word, and photos drift gently. Photos whose face is near the top edge don't drift.
 - Our Story (`components/story/Story.tsx`): a full-screen opening, a filmstrip that runs sideways as you scroll, photos that open from a window, and a closing scene. The copy is the brand's own.
 - Both use GSAP ScrollTrigger and stay still for visitors who turn on "reduce motion".
+- Opening curtain (`components/Preloader.tsx`, after tejint.com): on the first page of a visit, ink bars cover the screen while the ENRJI mark draws itself in a fine line, then the bars lift away and the page's entrance plays. It plays once per visit, never with reduced motion or without JavaScript, and never for more than 6 seconds.
 
 ### Customer reviews (Judge.me)
 Reviews come from [Judge.me](https://judge.me), the Shopify reviews app. It emails buyers after delivery, holds every review for moderation, and marks buyers as verified. The site shows only reviews published there; it never stores or invents any.

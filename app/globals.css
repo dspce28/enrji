@@ -859,3 +859,24 @@ img.drift { translate: 0 var(--py, 0); scale: 1.1; transform-origin: 50% 50% !im
   .st-object.o2 { left: 8%; top: 64%; width: 40%; }
 }
 @media (prefers-reduced-motion: reduce) { .st-scroll i { animation: none; } }
+
+/* ---------- Opening curtain (components/Preloader.tsx), after tejint.com ---------- */
+.preloader { display: none; }
+html.preloading .preloader { display: block; position: fixed; inset: 0; z-index: 1000; pointer-events: none; }
+html.preloading body { overflow: hidden; }
+.pl-bars { position: absolute; inset: 0; display: flex; }
+.pl-bar { flex: 1 1 0; height: 105lvh; background: #1d1915; }
+.pl-bar:nth-child(even) { background: #211c17; }
+.pl-mark { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: clamp(20px, 4vw, 64px); padding: 0 8vw; }
+.pl-mark svg { overflow: visible; fill: none; stroke: #f5f0e8; }
+.pl-ring { width: clamp(64px, 9vw, 132px); aspect-ratio: 1; stroke-width: 2; }
+.pl-ring g path { stroke-width: 10; }
+.pl-word { width: clamp(200px, 36vw, 560px); stroke-width: 7; }
+/* Each line draws itself (pathLength = 1 on every path). */
+.pl-mark path, .pl-mark circle { stroke-dasharray: 1; stroke-dashoffset: 1; animation: plDraw 1.5s cubic-bezier(.65, 0, .35, 1) forwards; }
+.pl-ring circle { animation-duration: 1.7s; }
+.pl-ring g path { animation-delay: .5s; }
+@keyframes plDraw { to { stroke-dashoffset: 0; } }
+/* Hold the page's own entrance until the curtain starts to lift. */
+html.preloading:not(.preload-lifting) :is(.ehero-slide.on, .ehero-slide.on img, .st-hero-media img, .st-line > span, .st-fade) { animation-play-state: paused; }
+@media (max-width: 760px) { .pl-mark { flex-direction: column; gap: 22px; } .pl-word { width: 62vw; } }

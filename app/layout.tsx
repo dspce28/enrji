@@ -5,6 +5,7 @@ import { CartDrawer } from '@/components/CartDrawer';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { SiteChrome } from '@/components/SiteChrome';
+import { Preloader, PRELOAD_SCRIPT } from '@/components/Preloader';
 import { SITE_URL, MULTIBUY, PROMISES } from '@/lib/config';
 import { Cormorant_Garamond, Jost, Unbounded } from 'next/font/google';
 
@@ -36,11 +37,14 @@ const announcements = [
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en-IN" className={`${display.variable} ${body.variable} ${heavy.variable}`}>
+    <html lang="en-IN" suppressHydrationWarning className={`${display.variable} ${body.variable} ${heavy.variable}`}>
       <head>
         <link rel="preconnect" href="https://cdn.shopify.com" crossOrigin="" />
+        {/* Decides before the first paint whether the opening curtain plays (see components/Preloader). */}
+        <script dangerouslySetInnerHTML={{ __html: PRELOAD_SCRIPT }} />
       </head>
       <body>
+        <Preloader />
         <CartProvider>
           <SiteChrome>
             <div className="announce" aria-label="Offers">
