@@ -34,7 +34,7 @@ export function preloadMaskModels() {
 }
 
 /** Box blur on a 0–1 map (two passes). Also used as a fast dilation: blur > 0 grows a shape by r. */
-function blur(src: Float32Array, w: number, h: number, r: number) {
+export function blur(src: Float32Array, w: number, h: number, r: number) {
   r = Math.max(1, Math.round(r));
   let a = src;
   for (let pass = 0; pass < 2; pass++) {
@@ -53,9 +53,12 @@ function blur(src: Float32Array, w: number, h: number, r: number) {
   }
   return a;
 }
-const dilate = (m: Float32Array, w: number, h: number, r: number) => { const b = blur(m, w, h, r / 2); for (let i = 0; i < b.length; i++) b[i] = b[i] > 0.02 ? 1 : 0; return b; };
+export const dilate = (m: Float32Array, w: number, h: number, r: number) => { const b = blur(m, w, h, r / 2); for (let i = 0; i < b.length; i++) b[i] = b[i] > 0.02 ? 1 : 0; return b; };
 
-export interface TryOnMask { width: number; height: number; /** 0–1 per pixel */ data: Float32Array }
+type Pt = { x: number; y: number };
+/** Body geometry from the pose, in photo pixels (used to place the print). */
+export interface Body { cx: number; shY: number; hipY: number; sw: number; forearms: { el: Pt; wr: Pt }[]; hands: { c: Pt; r: number }[] }
+export interface TryOnMask { width: number; height: number; /** 0–1 per pixel */ data: Float32Array; body: Body }
 
 /** Build the repaint mask for a photo (a canvas at the photo's working size). Null if no person is found. */
 export async function buildMask(photo: HTMLCanvasElement, kind: 'tee' | 'sweatshirt'): Promise<TryOnMask | null> {
@@ -116,7 +119,7 @@ export async function buildMask(photo: HTMLCanvasElement, kind: 'tee' | 'sweatsh
   }
   const grown = dilate(m, W, H, W * 0.012), kept = dilate(keep, W, H, W * 0.004);
   for (let i = 0; i < N; i++) grown[i] = grown[i] * (1 - kept[i]);
-  return { width: W, height: H, data: grown };
+  return { width: W, height: H, data: grown, body: { cx, shY, hipY, sw, forearms: arms.map((a) => ({ el: a.el, wr: a.wr })), hands } };
 }
 
 /** Pad a canvas to 3:4 (what the try-on model works in) so the photo and the mask stay aligned. */

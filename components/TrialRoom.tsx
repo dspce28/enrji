@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { drawGarment, GARMENT_COLORS, type GarmentKind } from '@/lib/garment';
 import { aiTryOn, type TryOnStatus } from '@/lib/hfTryon';
 import { buildMask, padTo34, preloadMaskModels, type TryOnMask } from '@/lib/tryonMask';
+import { overlayPrint } from '@/lib/printOverlay';
 import { cdn, inr, titleCase } from '@/lib/format';
 import { useCart } from './cart';
 
@@ -121,8 +122,17 @@ async function composite(photo: HTMLCanvasElement, mask: TryOnMask, out: Blob, c
     for (let c = 0; c < 3; c++) O.data[i * 4 + c] = O.data[i * 4 + c] * (1 - t) + R.data[i * 4 + c] * t;
   }
   const fc = canvasOf(W, H);
-  fc.getContext('2d')!.putImageData(O, 0, 0);
-  return toBlob(fc, 'image/jpeg', 0.93);
+  fc.getContext('2d', { willReadFrequently: true })!.putImageData(O, 0, 0);
+  return fc;
+}
+
+/** The product's print artwork for this colour, if there is one. */
+async function artworkOf(p: TryProduct, color: string | null) {
+  const src = (color && p.artwork[color]) || p.artwork['*'];
+  if (!src) return null;
+  const a = new Image();
+  a.src = src;
+  try { await a.decode(); return a; } catch { return null; }
 }
 
 /**
@@ -194,7 +204,13 @@ export function TrialRoom({ products, samples, initial }: { products: TryProduct
       const attempt = () => aiTryOn(prep?.person ?? photo.blob, garment, what, prep?.mask ?? null, setBusy, signal);
       let out: Blob;
       try { out = await attempt(); } catch (e) { if (signal.aborted) throw e; out = await attempt(); }   // one retry for a hiccup
-      if (mask && prep) out = await composite(cv, mask, out, prep.crop);
+      if (mask && prep) {
+        const dressed = await composite(cv, mask, out, prep.crop);
+        // Swap the model's approximate lettering for the real artwork (skipped when it can't be done cleanly).
+        const art = await artworkOf(product, color);
+        if (art) { try { overlayPrint(dressed, mask, art); } catch { /* keep the model's print */ } }
+        out = await toBlob(dressed, 'image/jpeg', 0.93);
+      }
       const url = URL.createObjectURL(out);
       cache.current.set(key, url);
       setResult(url);

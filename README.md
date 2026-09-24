@@ -21,9 +21,11 @@ The redesigned ENRJI website. It is a **Next.js front end over the live Shopify 
 | 360° view | Product pages and the Trial Room show each tee/sweatshirt as a 3D garment in its real colour and print; drag to spin |
 
 ### Trial Room print artwork
-The Trial Room draws each tee or sweatshirt in its real colour with its real print. The prints in `public/prints/` were cut out of the flat-lay product photos on enrji.in, and garment colours were sampled from the same photos (`data/garments.json`). `npm run build` regenerates `data/prints.json`, the list the Trial Room reads.
+AI try-on models draw lettering approximately ("SELLNG"). After the model dresses the photo, `lib/printOverlay.ts` finds the print it drew on the chest, erases it (keeping the fabric's shading), and lays the real artwork in its place. Visible hands and hair stay in front of it. When it can't do this cleanly (no print found, an odd size, or a forearm across the chest), it leaves the model's print as it is.
 
-- Products without a usable flat-lay (Energy Fade, which is tone-on-tone black, and Healthy Is New Rich) show the slogan typeset in the brand face instead.
+The prints in `public/prints/` were cut out of the flat-lay product photos on enrji.in, and garment colours were sampled from the same photos (`data/garments.json`). `npm run build` regenerates `data/prints.json`, the list the Trial Room reads.
+
+- Products without a usable flat-lay (Energy Fade, which is tone-on-tone black, and Healthy Is New Rich) have no artwork file, so the AI's own lettering stays.
 - For sharper results, replace any file with the print artwork from your designer: a transparent PNG trimmed to the print, named `<product-handle>.png` (per colour: `<handle>--<colour>.png`, e.g. `believe--black.png`).
 
 ### 3D photos (Virtual Store)
