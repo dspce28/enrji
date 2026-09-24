@@ -2,11 +2,11 @@ import { ImageResponse } from 'next/og';
 import { getProduct } from '@/lib/catalogue';
 import { cdn, inr, titleCase } from '@/lib/format';
 import { PROMISES } from '@/lib/config';
-import { Eyebrow, GOLD, INK, IVORY, MUTED, SHARE_SIZE, Wordmark, publicImage, shareFonts } from '@/lib/shareCard';
+import { asJpeg, Eyebrow, GOLD, INK, IVORY, MUTED, SHARE_SIZE, Wordmark, publicImage, shareFonts } from '@/lib/shareCard';
 import portraits from '@/data/portraits.json';
 
 export const size = SHARE_SIZE;
-export const contentType = 'image/png';
+export const contentType = 'image/jpeg';
 export const alt = 'An ENRJI tee or sweatshirt, worn';
 export const revalidate = 3600;
 
@@ -19,7 +19,7 @@ export default async function Image({ params }: { params: Promise<{ handle: stri
   // Our own cropped model photo if there is one, else the store's first photo.
   const photo = (PORTRAITS[handle] && await publicImage(`store/${handle}.jpg`)) || (p?.images[0] ? cdn(p.images[0].src, 800) : null);
   const kind = p?.kind === 'tee' ? 'Half-sleeve tee' : 'Sweatshirt';
-  return new ImageResponse(
+  return asJpeg(new ImageResponse(
     (
       <div style={{ display: 'flex', width: '100%', height: '100%', background: IVORY }}>
         {photo && (
@@ -49,5 +49,5 @@ export default async function Image({ params }: { params: Promise<{ handle: stri
       </div>
     ),
     { ...size, fonts },
-  );
+  ));
 }

@@ -1,4 +1,6 @@
 import { readFile } from 'node:fs/promises';
+import sharp from 'sharp';
+import type { ImageResponse } from 'next/og';
 import path from 'node:path';
 
 /**
@@ -45,4 +47,13 @@ export function Eyebrow({ children, color = MUTED }: { children: React.ReactNode
 
 export function Wordmark({ size = 34 }: { size?: number }) {
   return <div style={{ display: 'flex', fontFamily: 'Cormorant', fontWeight: 500, fontSize: size, letterSpacing: size * 0.42, color: INK }}>ENRJI</div>;
+}
+
+/**
+ * ImageResponse makes PNGs, which for photographs run to 400–800 KB. WhatsApp drops previews much over
+ * ~300 KB, so send a JPEG instead (about a tenth of the size).
+ */
+export async function asJpeg(img: ImageResponse) {
+  const jpg = await sharp(Buffer.from(await img.arrayBuffer())).jpeg({ quality: 82, mozjpeg: true }).toBuffer();
+  return new Response(new Uint8Array(jpg), { headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800' } });
 }

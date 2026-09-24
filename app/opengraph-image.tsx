@@ -1,14 +1,14 @@
 import { ImageResponse } from 'next/og';
-import { Eyebrow, GOLD, INK, IVORY, MUTED, SHARE_SIZE, Wordmark, publicImage, shareFonts } from '@/lib/shareCard';
+import { asJpeg, Eyebrow, GOLD, INK, IVORY, MUTED, SHARE_SIZE, Wordmark, publicImage, shareFonts } from '@/lib/shareCard';
 
 export const size = SHARE_SIZE;
-export const contentType = 'image/png';
+export const contentType = 'image/jpeg';
 export const alt = 'ENRJI: tees and sweatshirts to live by. Tees ₹699, sweatshirts ₹1,099, free shipping across India.';
 
 /** The share picture for every page that doesn't have its own (home, shop, lookbook, story…). */
 export default async function Image() {
   const [fonts, a, b] = await Promise.all([shareFonts(), publicImage('store/believe.jpg'), publicImage('store/i-am-energy-sweatshirt.jpg')]);
-  return new ImageResponse(
+  return asJpeg(new ImageResponse(
     (
       <div style={{ display: 'flex', width: '100%', height: '100%', background: IVORY }}>
         <div style={{ display: 'flex', width: 560, height: '100%', gap: 6 }}>
@@ -38,5 +38,5 @@ export default async function Image() {
       </div>
     ),
     { ...size, fonts },
-  );
+  ));
 }
