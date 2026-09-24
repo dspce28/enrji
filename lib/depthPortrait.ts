@@ -28,18 +28,32 @@ export function portraitUrls(handle: string) {
   return { map: `/store/${handle}.jpg`, depth: `/store/${handle}-depth.png`, mask: `/store/${handle}-mask.png` };
 }
 
-export function loadPortrait(handle: string): Promise<PortraitTextures> {
-  let p = cache.get(handle);
+/** Loads a 3D photo's textures. `maxSide` shrinks them (wall posters don't need full resolution, and it keeps GPU memory down). */
+export function loadPortrait(handle: string, maxSide?: number): Promise<PortraitTextures> {
+  const key = `${handle}@${maxSide ?? 0}`;
+  let p = cache.get(key);
   if (!p) {
     const u = portraitUrls(handle);
-    const one = (url: string, srgb: boolean) => loader!.loadAsync(url).then((t) => {
+    const one = (url: string, srgb: boolean) => loader!.loadAsync(url).then((loaded) => {
+      let t: THREE.Texture = loaded;
+      const img = loaded.image as HTMLImageElement;
+      const k = maxSide ? maxSide / Math.max(img.width, img.height) : 1;
+      if (k < 1) {
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        const g = c.getContext('2d')!;
+        g.imageSmoothingQuality = 'high';
+        g.drawImage(img, 0, 0, c.width, c.height);
+        loaded.dispose();
+        t = new THREE.CanvasTexture(c);
+      }
       t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
       t.anisotropy = 8;
       return t;
     });
     p = Promise.all([one(u.map, true), one(u.depth, false), one(u.mask, false)]).then(([map, depth, mask]) => ({ map, depth, mask }));
-    p.catch(() => cache.delete(handle));
-    cache.set(handle, p);
+    p.catch(() => cache.delete(key));
+    cache.set(key, p);
   }
   return p;
 }

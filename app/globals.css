@@ -116,7 +116,7 @@ button { font: inherit; color: inherit; letter-spacing: inherit; }
 .wordmark { font-family: var(--font-display); font-weight: 500; font-size: 27px; letter-spacing: .42em; padding-left: .42em; line-height: 1; display: flex; align-items: center; justify-content: center; }
 .wordmark .dot { display: none; }
 .nav { display: flex; gap: 28px; align-items: center; }
-.nav a { position: relative; font-size: 11px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; color: var(--text); padding: 6px 0; }
+.nav a { position: relative; white-space: nowrap; font-size: 11px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; color: var(--text); padding: 6px 0; }
 .nav a::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: currentColor; transform: scaleX(0); transform-origin: right; transition: transform .45s var(--ease); }
 .nav a:hover::after, .nav a[aria-current='page']::after { transform: scaleX(1); transform-origin: left; }
 .header-actions { justify-self: end; display: flex; gap: 28px; align-items: center; }
@@ -126,8 +126,9 @@ button { font: inherit; color: inherit; letter-spacing: inherit; }
 .count { position: absolute; top: 2px; right: 0; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 99px; background: var(--ink); color: var(--on-ink); font-size: 10px; font-weight: 500; display: grid; place-items: center; }
 .count.bump { animation: bump .45s var(--ease); }
 .menu-btn { display: none; }
+@media (max-width: 1320px) { .nav { gap: 18px; } .nav a { letter-spacing: .14em; } }
 .icons { display: flex; gap: 4px; }
-@media (max-width: 1080px) {
+@media (max-width: 1140px) {
   .nav { display: none; }
   .menu-btn { display: grid; }
   .header-inner { height: 64px; }

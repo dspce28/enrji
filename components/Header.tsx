@@ -7,6 +7,7 @@ import { useCart } from './cart';
 import { accountUrl } from '@/lib/config';
 
 const LEFT = [
+  { href: '/', label: 'Home' },
   { href: '/shop', label: 'Shop' },
   { href: '/collections/sweatshirts', label: 'Sweatshirts' },
   { href: '/collections/tees', label: 'Tees' },
@@ -18,6 +19,7 @@ const RIGHT = [
   { href: '/our-story', label: 'Our Story' },
 ];
 const NAV = [...LEFT, ...RIGHT];
+const isCurrent = (path: string, href: string) => (href === '/' ? path === '/' : path.startsWith(href));
 
 export function Header() {
   const path = usePathname();
@@ -50,13 +52,13 @@ export function Header() {
               <svg viewBox="0 0 24 24"><path d="M4 9h16M4 15h16" /></svg>
             </button>
             <nav className="nav" aria-label="Shop">
-              {LEFT.map((n) => <Link key={n.href} href={n.href} aria-current={path.startsWith(n.href) ? 'page' : undefined}>{n.label}</Link>)}
+              {LEFT.map((n) => <Link key={n.href} href={n.href} aria-current={isCurrent(path, n.href) ? 'page' : undefined}>{n.label}</Link>)}
             </nav>
           </div>
           <Link href="/" className="wordmark" aria-label="ENRJI home">ENRJI</Link>
           <div className="header-actions">
             <nav className="nav" aria-label="Experiences">
-              {RIGHT.map((n) => <Link key={n.href} href={n.href} aria-current={path.startsWith(n.href) ? 'page' : undefined}>{n.label}</Link>)}
+              {RIGHT.map((n) => <Link key={n.href} href={n.href} aria-current={isCurrent(path, n.href) ? 'page' : undefined}>{n.label}</Link>)}
             </nav>
             <div className="icons">
               <a className="icon-btn" href={accountUrl} aria-label="Account">

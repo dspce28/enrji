@@ -27,15 +27,15 @@ const EYE = 1.7;
 const PEDESTAL_R = 2.4;
 const GOLD = '#d9ab52';
 
-/** Display positions along the back, left, right and front walls, facing inward. */
+/** Display positions along the back, left, right and front walls (seven frames each), facing inward. */
 function slots(n: number) {
-  const along = [-10.5, -3.5, 3.5, 10.5];
+  const along = [-12.9, -8.6, -4.3, 0, 4.3, 8.6, 12.9];
   const inset = ROOM - 0.25;
   return [
     ...along.map((x) => ({ x, z: -inset, ry: 0 })),
     ...along.map((z) => ({ x: -inset, z, ry: Math.PI / 2 })),
     ...along.map((z) => ({ x: inset, z, ry: -Math.PI / 2 })),
-    ...[-10.5, 10.5, -5.5, 5.5].map((x) => ({ x, z: inset, ry: Math.PI })),
+    ...along.map((x) => ({ x, z: inset, ry: Math.PI })),
   ].slice(0, n);
 }
 
@@ -169,7 +169,8 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
     const posterGeo = track(new THREE.PlaneGeometry(2.85, 3.8));
     const labelGeo = track(new THREE.PlaneGeometry(3.1, 0.62));
     const centre = products.find((p) => p.limited && p.portrait) ?? products.find((p) => p.portrait) ?? products[0];
-    const wall = products.filter((p) => p !== centre);
+    const standing = products.filter((p) => p.portrait && p !== centre).slice(0, 4);
+    const wall = products.filter((p) => p !== centre && !standing.includes(p));
     const places = slots(wall.length);
 
     const build = Promise.all(wall.slice(0, places.length).map(async (p, i) => {
@@ -188,7 +189,7 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
       if (p.portrait) {
         // 3D photo: the model stands out of the frame and shifts as you walk past.
         try {
-          const pm = createPortrait(await loadPortrait(p.handle), { mode: 'full', height: 3.8, relief: 0.32 });
+          const pm = createPortrait(await loadPortrait(p.handle, 1024), { mode: 'full', height: 3.8, relief: 0.32 });
           pm.material.uniforms.brightness.value = 0.97;
           pm.position.set(0, 3.05 - 1.9, 0.06);
           portraits.push(pm);
@@ -257,7 +258,6 @@ export default function VirtualStore({ products }: { products: StoreProduct[] })
     const plinthMat = track(new THREE.MeshStandardMaterial({ color: '#16130f', metalness: 0.9, roughness: 0.25 }));
     const plinthGeo = track(new THREE.CylinderGeometry(0.75, 0.85, 0.24, 48));
     const ringGeo = track(new THREE.TorusGeometry(0.8, 0.018, 6, 96));
-    const standing = products.filter((p) => p.portrait && p !== centre).slice(0, 4);
     const figureBuild = Promise.all(standing.map(async (p, i) => {
       const [x, z] = [[-7, -6], [7, -6], [-7, 5], [7, 5]][i];
       const g = new THREE.Group();
