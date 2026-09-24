@@ -26,8 +26,11 @@ export function Preloader() {
       try { sessionStorage.setItem('enrji-intro', '1'); } catch { /* private mode: it just plays again */ }
     };
     const el = root.current!;
-    // The drawing (CSS) started at first paint; on a slow phone JavaScript arrives late, so don't add a full wait.
-    const hold = Math.max(0.2, 1.9 - performance.now() / 1000);
+    // The mark starts drawing (CSS) at first paint, which on a real connection can be a second or more after
+    // navigation starts. Hold it for at least 2.3 s from that paint (fully drawn by ~1.9 s, then a beat),
+    // and at least 0.6 s more even when JavaScript arrives late.
+    const paint = performance.getEntriesByName('first-paint')[0]?.startTime ?? performance.now();
+    const hold = Math.max(0.6, 2.3 - (performance.now() - paint) / 1000);
     const tl = gsap.timeline({ onComplete: done })
       .to(el.querySelector('.pl-mark'), { delay: hold, duration: 0.8, opacity: 0, y: -12, ease: 'power2.in' })
       .to(el.querySelectorAll('.pl-bar'), { duration: 0.9, height: 0, ease: 'power4.inOut', stagger: { each: 0.045, from: 'start' } }, '+=0.15')
@@ -48,7 +51,7 @@ export function Preloader() {
           <g transform="translate(59 172) scale(0.2)"><path d={WORDMARK.paths[0]} pathLength={1} /></g>
         </svg>
         <svg className="pl-word" viewBox={WORDMARK.viewBox}>
-          {WORDMARK.paths.map((d, i) => <path key={i} d={d} pathLength={1} style={{ animationDelay: `${0.25 + i * 0.12}s` }} />)}
+          {WORDMARK.paths.map((d, i) => <path key={i} d={d} pathLength={1} style={{ animationDelay: `${0.2 + i * 0.1}s` }} />)}
         </svg>
       </div>
     </div>

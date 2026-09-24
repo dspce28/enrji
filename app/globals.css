@@ -873,9 +873,9 @@ html.preloading body { overflow: hidden; }
 .pl-ring g path { stroke-width: 10; }
 .pl-word { width: clamp(200px, 36vw, 560px); stroke-width: 7; }
 /* Each line draws itself (pathLength = 1 on every path). */
-.pl-mark path, .pl-mark circle { stroke-dasharray: 1; stroke-dashoffset: 1; animation: plDraw 1.5s cubic-bezier(.65, 0, .35, 1) forwards; }
-.pl-ring circle { animation-duration: 1.7s; }
-.pl-ring g path { animation-delay: .5s; }
+.pl-mark path, .pl-mark circle { stroke-dasharray: 1; stroke-dashoffset: 1; animation: plDraw 1.3s cubic-bezier(.65, 0, .35, 1) forwards; }
+.pl-ring circle { animation-duration: 1.5s; }
+.pl-ring g path { animation-delay: .4s; }
 @keyframes plDraw { to { stroke-dashoffset: 0; } }
 /* Hold the page's own entrance until the curtain starts to lift. */
 html.preloading:not(.preload-lifting) :is(.ehero-slide.on, .ehero-slide.on img, .st-hero-media img, .st-line > span, .st-fade) { animation-play-state: paused; }
