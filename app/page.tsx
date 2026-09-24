@@ -6,7 +6,9 @@ import { ProductCard } from '@/components/ProductCard';
 import { Reveal } from '@/components/Reveal';
 import { EditorialHero, type HeroFrame } from '@/components/EditorialHero';
 import { EnergyList, type EnergyRow } from '@/components/EnergyList';
+import { HomeCinematic } from '@/components/HomeCinematic';
 import portraits from '@/data/portraits.json';
+import { focus } from '@/lib/focus';
 
 export const revalidate = 300;
 
@@ -25,7 +27,7 @@ export default async function Home() {
   const img = (handle: string, i = 0) => { const p = byHandle.get(handle); return p?.images[i] ?? p?.images[0] ?? null; };
   const frame = ([h, i]: [string, number]): HeroFrame | null => {
     const p = byHandle.get(h), im = img(h, i);
-    return p && im ? { src: im.src, alt: `${titleCase(p.baseName)} ${p.kind === 'tee' ? 'tee' : 'sweatshirt'}, worn`, href: `/products/${p.handle}`, caption: titleCase(p.baseName) } : null;
+    return p && im ? { src: im.src, alt: `${titleCase(p.baseName)} ${p.kind === 'tee' ? 'tee' : 'sweatshirt'}, worn`, href: `/products/${p.handle}`, caption: titleCase(p.baseName), style: focus(im.src) } : null;
   };
   const pairs = HERO.map((pair) => pair.map(frame)).filter((pr): pr is [HeroFrame, HeroFrame] => !!pr[0] && !!pr[1]);
 
@@ -34,10 +36,10 @@ export default async function Home() {
   const pillars: EnergyRow[] = (Object.keys(PILLARS) as Pillar[]).map((k) => {
     const inPillar = products.filter((p) => pillarOf(p) === k);
     const face = inPillar.find((p) => PORTRAITS[p.handle]);
-    return { key: k, title: PILLARS[k].title, line: PILLARS[k].line, count: inPillar.length, image: face ? PORTRAITS[face.handle].src : inPillar[0]?.images[0]?.src ?? null };
+    return { key: k, title: PILLARS[k].title, line: PILLARS[k].line, count: inPillar.length, image: face ? PORTRAITS[face.handle].src : inPillar[0]?.images[0]?.src ?? null, style: focus(face ? PORTRAITS[face.handle].src : inPillar[0]?.images[0]?.src) };
   });
   const dropImg = img('believe', 1);
-  const sweatImg = img('manifesting-sweatshirt', 1);
+  const sweatImg = img('healthy-is-new-rich-sweatshirt', 0);   // manifesting-sweatshirt #1 crops the head in the source photo
   const teeImg = img('focus', 0);
   const founder = img('believe', 0);
   const trialImg = img('family-is-my-strength', 1);
@@ -46,6 +48,10 @@ export default async function Home() {
   return (
     <>
       {pairs.length > 0 && <EditorialHero pairs={pairs} title="Wear your energy" sub="Feel it · Live it" />}
+      <HomeCinematic />
+
+      {/* Slides up over the hero as you scroll (see HomeCinematic). */}
+      <div className="home-rest">
 
       <section className="section statement">
         <Reveal className="container statement-inner">
@@ -60,7 +66,7 @@ export default async function Home() {
         <section className="section tight">
           <div className="container split">
             <Reveal className="split-media clip-reveal">
-              {dropImg && <img src={cdn(dropImg.src, 1200)} srcSet={srcSet(dropImg.src, [600, 900, 1200, 1600])} sizes="(max-width: 900px) 100vw, 55vw" alt="The Believe sweatshirt from the Live Like Krishna edition" loading="lazy" />}
+              {dropImg && <img src={cdn(dropImg.src, 1200)} srcSet={srcSet(dropImg.src, [600, 900, 1200, 1600])} sizes="(max-width: 900px) 100vw, 55vw" alt="The Believe sweatshirt from the Live Like Krishna edition" loading="lazy" style={focus(dropImg.src)} />}
             </Reveal>
             <Reveal className="split-copy" delay={150}>
               <p className="eyebrow">Limited edition</p>
@@ -83,7 +89,7 @@ export default async function Home() {
           ].map((t, n) => (
             <Reveal key={t.href} delay={n * 150}>
               <Link href={t.href} className="tile">
-                <div className="tile-media clip-reveal">{t.im && <img src={cdn(t.im.src, 1200)} srcSet={srcSet(t.im.src, [600, 900, 1200])} sizes="(max-width: 760px) 100vw, 50vw" alt="" loading="lazy" />}</div>
+                <div className="tile-media clip-reveal">{t.im && <img src={cdn(t.im.src, 1200)} srcSet={srcSet(t.im.src, [600, 900, 1200])} sizes="(max-width: 760px) 100vw, 50vw" alt="" loading="lazy" style={focus(t.im.src)} />}</div>
                 <div className="tile-cap">
                   <h3 className="display h3">{t.title}</h3>
                   <span>{t.line}</span>
@@ -121,7 +127,7 @@ export default async function Home() {
       <section className="section">
         <div className="container founder">
           <Reveal className="founder-img clip-reveal">
-            {founder && <img src={cdn(founder.src, 1200)} srcSet={srcSet(founder.src, [540, 900, 1200])} sizes="(max-width: 860px) 100vw, 45vw" alt="Sneh Desai at Live Like Krishna" loading="lazy" />}
+            {founder && <img src={cdn(founder.src, 1200)} srcSet={srcSet(founder.src, [540, 900, 1200])} sizes="(max-width: 860px) 100vw, 45vw" alt="Sneh Desai at Live Like Krishna" loading="lazy" style={focus(founder.src)} />}
           </Reveal>
           <Reveal delay={150}>
             <p className="eyebrow">From our story</p>
@@ -145,7 +151,7 @@ export default async function Home() {
             ].map((t, n) => (
               <Reveal key={t.href} delay={n * 150}>
                 <Link href={t.href} className="tile tile-wide">
-                  <div className="tile-media clip-reveal">{t.im && <img src={cdn(t.im.src, 1200)} srcSet={srcSet(t.im.src, [600, 900, 1200])} sizes="(max-width: 760px) 100vw, 50vw" alt="" loading="lazy" />}</div>
+                  <div className="tile-media clip-reveal">{t.im && <img src={cdn(t.im.src, 1200)} srcSet={srcSet(t.im.src, [600, 900, 1200])} sizes="(max-width: 760px) 100vw, 50vw" alt="" loading="lazy" style={focus(t.im.src)} />}</div>
                   <div className="tile-cap">
                     <h3 className="display h3">{t.title}</h3>
                     <span>{t.line}</span>
@@ -165,6 +171,7 @@ export default async function Home() {
           <div><svg viewBox="0 0 24 24"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z" /></svg><span><b>Premium fabric</b>100% combed cotton, bio-washed</span></div>
           <div><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8" /><path d="M21 3v5h-5" /></svg><span><b>Made right</b>Wrong or damaged? We make it right</span></div>
         </div>
+      </div>
       </div>
     </>
   );

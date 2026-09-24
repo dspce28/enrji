@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { cdn, srcSet } from '@/lib/format';
 
-export interface HeroFrame { src: string; alt: string; href: string; caption: string }
+export interface HeroFrame { src: string; alt: string; href: string; caption: string; style?: React.CSSProperties }
 
 const HOLD = 6500;
 
@@ -47,13 +47,14 @@ export function EditorialHero({ pairs, title, sub }: { pairs: [HeroFrame, HeroFr
             {pair.map((f, k) => (
               <Link key={k} href={f.href} className="ehero-frame" tabIndex={n === i ? 0 : -1}>
                 {(n === 0 || rest) && <img src={cdn(f.src, 1200)} srcSet={srcSet(f.src, [600, 900, 1200, 1600])} sizes="(max-width: 760px) 100vw, 50vw" alt={f.alt}
-                  loading={k === 0 ? 'eager' : 'lazy'} fetchPriority={n === 0 && k === 0 ? 'high' : 'low'} />}
+                  loading={k === 0 ? 'eager' : 'lazy'} fetchPriority={n === 0 && k === 0 ? 'high' : 'low'} style={f.style} />}
                 <span className="ehero-cap">{f.caption}</span>
               </Link>
             ))}
           </div>
         ))}
       </div>
+      <div className="ehero-shade" aria-hidden />
       <div className="ehero-copy">
         <p className="ehero-sub">{sub}</p>
         <h1 className="ehero-title">{title}</h1>

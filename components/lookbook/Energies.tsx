@@ -7,6 +7,7 @@ import gsap from 'gsap';
 import { CustomEase } from 'gsap/CustomEase';
 import { cdn } from '@/lib/format';
 import { FlairButton } from './FlairButton';
+import { HomeButton } from './HomeButton';
 import { Cursor } from './Cursor';
 
 gsap.registerPlugin(CustomEase);
@@ -135,7 +136,10 @@ export function Energies({ slides }: { slides: EnergySlide[] }) {
           <span className="en-logo-ring">E</span>
           <span className="en-logo-word">ENRJI</span>
         </Link>
-        <FlairButton href="/lookbook">Lookbook</FlairButton>
+        <div className="en-head-actions">
+          <FlairButton href="/lookbook">Lookbook</FlairButton>
+          <HomeButton />
+        </div>
       </header>
 
       <button className="en-arrow en-left" onClick={() => go((active - 1 + n) % n)} aria-label="Previous energy">

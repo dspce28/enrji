@@ -6,6 +6,7 @@ import gsap from 'gsap';
 import { cdn, srcSet } from '@/lib/format';
 import { FlairButton } from './FlairButton';
 import { Cursor } from './Cursor';
+import { HomeButton } from './HomeButton';
 
 export interface StudioLook { handle: string; src: string; name: string }
 
@@ -110,6 +111,7 @@ export function Studio({ looks }: { looks: StudioLook[] }) {
           </Link>
         ))}
       </div>
+      <HomeButton className="lb-home-fixed" />
       <Cursor />
     </div>
   );

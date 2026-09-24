@@ -1,77 +1,41 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
-import { getProduct } from '@/lib/catalogue';
-import { cdn } from '@/lib/format';
-import { Reveal } from '@/components/Reveal';
+import { getProducts } from '@/lib/catalogue';
+import { focus } from '@/lib/focus';
+import { Story, type StoryImage } from '@/components/story/Story';
 
 export const revalidate = 3600;
 export const metadata: Metadata = { title: 'Our Story', description: 'ENRJI was founded by Sneh Desai to keep you close to the person you decided to become.' };
 
-const PILLARS = [
-  ['Mental ENRJI', 'Clear thinking. Continuous learning. Focus.'],
-  ['Emotional ENRJI', 'Better relationships. Gratitude. Purpose.'],
-  ['Physical ENRJI', 'Strength. Health. Discipline.'],
-  ['Spiritual ENRJI', 'Inner peace. Balance. Growth.'],
+// Photographs from the store's own galleries: [product handle, image index, description for screen readers].
+const HERO: [string, number, string] = ['i-am-energy-sweatshirt', 0, 'Sneh Desai on stage'];
+const INTRO: [string, number, string] = ['surrender-smile-rise', 0, 'Sneh Desai at Live Like Krishna'];
+const FILM: [string, number, string][] = [
+  ['business-is-seva', 0, 'Sneh Desai on stage in the Business Is Seva sweatshirt'],
+  ['selling-is-serving-sweatshirt', 0, 'Sneh Desai speaking in the Selling Is Serving sweatshirt'],
+  ['manifesting-sweatshirt', 0, 'Sneh Desai on stage in the Manifesting sweatshirt'],
+  ['selling-is-serving-tee', 0, 'Sneh Desai on stage in the Selling Is Serving tee'],
+  ['believe', 0, 'Sneh Desai at Live Like Krishna in the Believe sweatshirt'],
+  ['selling-is-serving-sweatshirt', 1, 'Sneh Desai on stage'],
 ];
-const MOVEMENT = [
-  ['Growth', 'Growth is a lifestyle.'],
-  ['Excellence', 'Excellence becomes a habit.'],
-  ['Discipline', 'Discipline becomes attractive.'],
-  ['Environment', 'Create an environment that supports your dreams.'],
+const ENERGIES: [string, number, string][] = [
+  ['mindset-is-everything-sweatshirt', 1, 'Mindset Is Everything sweatshirt, worn'],
+  ['love-is-my-superpower', 3, 'Love Is My Superpower tee, worn'],
+  ['healthy-is-new-rich-sweatshirt', 0, 'Healthy Is The New Rich sweatshirt, worn'],
+  ['believe', 1, 'Believe sweatshirt, worn'],
 ];
+const OBJECTS: [string, number, string][] = [
+  ['believe', 3, 'The Believe sweatshirt, folded'],
+  ['selling-is-serving-tee', 3, 'The Selling Is Serving tee, folded'],
+  ['surrender-smile-rise', 3, 'The Surrender. Smile. Rise. sweatshirt, folded'],
+];
+const END: [string, number, string] = ['manifesting-sweatshirt', 0, 'Sneh Desai on stage'];
 
 export default async function OurStory() {
-  const img = (await getProduct('surrender-smile-rise'))?.images[0] ?? (await getProduct('i-am-energy'))?.images[0];
-  return (
-    <>
-      <div className="container">
-        <header className="page-head">
-          <p className="eyebrow">Our story</p>
-          <h1 className="display h1" style={{ marginTop: 14, maxWidth: '14ch' }}>Every day, you make <span className="serif gold">hundreds</span> of choices.</h1>
-        </header>
-        <div className="founder" style={{ alignItems: 'start' }}>
-          <Reveal className="founder-img">{img && <img src={cdn(img.src, 1200)} alt="Sneh Desai on stage" />}</Reveal>
-          <Reveal className="prose" delay={100}>
-            <p>Before you step into the world you decide what to think, how to act, where to focus and who to become. One of those choices is something most people never question: what you wear, what you carry, what surrounds you.</p>
-            <h2>Everything around you shapes your mindset</h2>
-            <p>Your environment. Your habits. Your conversations. The books you read, the music you listen to, the people you spend time with. And yes, the products you choose every single day.</p>
-            <h2>Born from transformation</h2>
-            <p>ENRJI was founded by Sneh Desai after more than two decades of helping millions of people unlock their potential through seminars, books, coaching programmes and transformational experiences.</p>
-            <p>Over the years one realisation kept appearing. People rarely fail because they don&apos;t know what to do. They fail because life slowly pulls them away from who they wanted to become. Goals get forgotten. Standards begin to drop. Distractions take over. The environment wins.</p>
-            <p><b style={{ color: 'var(--text)' }}>That&apos;s why ENRJI was created.</b></p>
-          </Reveal>
-        </div>
-      </div>
-
-      <section className="section">
-        <div className="container">
-          <Reveal className="section-head"><div><p className="eyebrow">Why ENRJI exists</p><h2 className="display h2" style={{ marginTop: 14 }}>The quality of your energy decides the quality of your life.</h2></div></Reveal>
-          <Reveal className="pillars">
-            {PILLARS.map(([t, l], i) => (
-              <div key={t} className="pillar"><span className="num">0{i + 1}</span><div><h3>{t}</h3><p>{l}</p></div></div>
-            ))}
-          </Reveal>
-          <p className="lead" style={{ marginTop: 32 }}>Everything we create exists to protect, elevate and remind you of that energy. Simple.</p>
-        </div>
-      </section>
-
-      <section className="section tight">
-        <div className="container">
-          <Reveal><p className="eyebrow">This is the ENRJI movement</p></Reveal>
-          <div style={{ marginTop: 28 }}>
-            {MOVEMENT.map(([t, l], i) => (
-              <Reveal key={t} delay={i * 60} style={{ display: 'flex', justifyContent: 'space-between', gap: 24, alignItems: 'baseline', borderTop: '1px solid var(--line)', padding: '28px 0', flexWrap: 'wrap' }}>
-                <span className="display h2">{t}</span>
-                <span className="serif" style={{ fontSize: 'clamp(22px, 2.4vw, 32px)', color: 'var(--muted)' }}>{l}</span>
-              </Reveal>
-            ))}
-          </div>
-          <Reveal style={{ marginTop: 60, textAlign: 'center' }}>
-            <p className="serif" style={{ fontSize: 'clamp(28px, 3.4vw, 48px)', maxWidth: 900, margin: '0 auto' }}>“Every product you own should either elevate your life… or it shouldn&apos;t be there.”</p>
-            <Link href="/shop" className="btn btn-gold" style={{ marginTop: 36 }}>Choose your ENRJI</Link>
-          </Reveal>
-        </div>
-      </section>
-    </>
-  );
+  const byHandle = new Map((await getProducts()).map((p) => [p.handle, p]));
+  const pick = ([h, i, alt]: [string, number, string]): StoryImage | null => {
+    const im = byHandle.get(h)?.images[i];
+    return im ? { src: im.src, alt, style: focus(im.src) } : null;
+  };
+  const list = (xs: [string, number, string][]) => xs.map(pick).filter((x): x is StoryImage => !!x);
+  return <Story hero={pick(HERO)} intro={pick(INTRO)} film={list(FILM)} energies={list(ENERGIES)} objects={list(OBJECTS)} end={pick(END)} />;
 }

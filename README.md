@@ -28,6 +28,15 @@ The prints in `public/prints/` were cut out of the flat-lay product photos on en
 - Products without a usable flat-lay (Energy Fade, which is tone-on-tone black, and Healthy Is New Rich) have no artwork file, so the AI's own lettering stays.
 - For sharper results, replace any file with the print artwork from your designer: a transparent PNG trimmed to the print, named `<product-handle>.png` (per colour: `<handle>--<colour>.png`, e.g. `believe--black.png`).
 
+### Faces in frame
+Photos are cropped to many frame shapes. `scripts/focal-points.py` finds the face in every catalogue photo (MediaPipe pose) and writes `data/focal.json`; `lib/focus.ts` turns that into `object-position` so crops and zooms keep the face in view. Re-run it after adding products:
+`python3 scripts/focal-points.py --models <dir with pose_landmarker_lite.task>`
+
+### Scroll effects
+- Home (`components/HomeCinematic.tsx`): the page slides up over the hero as you scroll, the brand statement lights up word by word, and photos drift gently. Photos whose face is near the top edge don't drift.
+- Our Story (`components/story/Story.tsx`): a full-screen opening, a filmstrip that runs sideways as you scroll, photos that open from a window, and a closing scene. The copy is the brand's own.
+- Both use GSAP ScrollTrigger and stay still for visitors who turn on "reduce motion".
+
 ### Customer reviews (Judge.me)
 Reviews come from [Judge.me](https://judge.me), the Shopify reviews app. It emails buyers after delivery, holds every review for moderation, and marks buyers as verified. The site shows only reviews published there; it never stores or invents any.
 

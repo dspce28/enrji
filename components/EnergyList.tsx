@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { cdn } from '@/lib/format';
 
-export interface EnergyRow { key: string; title: string; line: string; count: number; image: string | null }
+export interface EnergyRow { key: string; title: string; line: string; count: number; image: string | null; style?: React.CSSProperties }
 
 /** The four ENRJI energies as an index; hovering a row floats its photograph beside the pointer. */
 export function EnergyList({ rows }: { rows: EnergyRow[] }) {
@@ -31,7 +31,7 @@ export function EnergyList({ rows }: { rows: EnergyRow[] }) {
         </Link>
       ))}
       <div ref={float} className={`energy-float${active !== null ? ' show' : ''}`} aria-hidden>
-        {rows.map((r, n) => r.image && <img key={r.key} src={cdn(r.image, 500)} alt="" className={active === n ? 'on' : ''} loading="lazy" />)}
+        {rows.map((r, n) => r.image && <img key={r.key} src={cdn(r.image, 500)} alt="" className={active === n ? 'on' : ''} loading="lazy" style={r.style} />)}
       </div>
     </div>
   );
