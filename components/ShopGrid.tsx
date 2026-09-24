@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import type { Product, Pillar } from '@/lib/catalogue';
 import { ProductCard } from './ProductCard';
 
-export interface ShopItem { p: Product; pillar: Pillar | null }
+export interface ShopItem { p: Product; pillar: Pillar | null; rating?: { average: number; count: number } }
 
 const PILLAR_LABELS: Record<Pillar, string> = { mental: 'Mental', emotional: 'Emotional', physical: 'Physical', spiritual: 'Spiritual' };
 
@@ -70,7 +70,7 @@ function Grid({ items, fixedKind, params }: GridProps & { params: URLSearchParam
       </div>
       <p className="count-note">{shown.length} {shown.length === 1 ? 'piece' : 'pieces'}</p>
       {shown.length ? (
-        <div className="grid" style={{ marginTop: 16 }}>{shown.map(({ p }, i) => <ProductCard key={p.handle} p={p} priority={i < 4} />)}</div>
+        <div className="grid" style={{ marginTop: 16 }}>{shown.map(({ p, rating }, i) => <ProductCard key={p.handle} p={p} rating={rating} priority={i < 4} />)}</div>
       ) : (
         <div className="empty">Nothing matches those filters. <button className="link-arrow" style={{ background: 'none', border: 0, cursor: 'pointer' }} onClick={() => router.replace(path)}>Clear filters</button></div>
       )}

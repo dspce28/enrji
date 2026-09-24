@@ -7,6 +7,7 @@ import type { GarmentLook } from '@/lib/look';
 import { useCart } from './cart';
 import { Gallery } from './Gallery';
 import { Price } from './Price';
+import { Stars } from './Stars';
 import { checkoutUrl } from '@/lib/checkout';
 import { MULTIBUY, PROMISES, whatsappLink } from '@/lib/config';
 import { cdn, inr, titleCase } from '@/lib/format';
@@ -14,7 +15,7 @@ import { sizesFor } from '@/lib/sizes';
 
 const SWATCH: Record<string, string> = { blue: '#1d4b66', navy: '#1a2140', black: '#111', white: '#eee', grey: '#777' };
 
-export function ProductView({ p, twin, look }: { p: Product; twin: Pick<Product, 'handle' | 'kind' | 'price' | 'images'> | null; look: GarmentLook }) {
+export function ProductView({ p, twin, look, rating }: { p: Product; twin: Pick<Product, 'handle' | 'kind' | 'price' | 'images'> | null; look: GarmentLook; rating?: { average: number; count: number } | null }) {
   const { add, setOpen, toast } = useCart();
   const firstColor = p.colors.find((c) => p.variants.some((v) => v.color === c && v.available)) ?? p.colors[0] ?? null;
   const [color, setColor] = useState<string | null>(firstColor);
@@ -69,6 +70,7 @@ export function ProductView({ p, twin, look }: { p: Product; twin: Pick<Product,
         <div>
           <p className="eyebrow">{p.limited ? 'Limited edition · Live Like Krishna' : p.kind === 'tee' ? 'Half-sleeve tee · 220 GSM' : 'Sweatshirt · 250 GSM'}</p>
           <h1 style={{ marginTop: 14 }}>{p.title}</h1>
+          {rating && <a href="#reviews" className="buy-rating"><Stars value={rating.average} /> {rating.average.toFixed(1)} · {rating.count} review{rating.count === 1 ? '' : 's'}</a>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <Price price={variant?.price ?? p.price} compareAt={variant?.compareAt ?? p.compareAt} showOff />

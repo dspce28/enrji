@@ -687,3 +687,48 @@ input[type='checkbox'] { accent-color: var(--gold); }
 .ai-go { display: grid; gap: 12px; padding: 20px; background: var(--bg-2); border: 1px solid var(--line); }
 .ai-consent { display: flex; gap: 10px; align-items: flex-start; font-size: 12px; line-height: 1.5; color: var(--muted); cursor: pointer; }
 .ai-consent input { margin-top: 2px; accent-color: var(--ink); }
+
+/* ---------- Reviews ---------- */
+.stars { position: relative; display: inline-block; line-height: 1; letter-spacing: .08em; vertical-align: -1px; }
+.stars-off { color: var(--line-2); }
+.stars-on { position: absolute; left: 0; top: 0; overflow: hidden; white-space: nowrap; color: var(--gold); }
+.card-rating { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 6px; font-size: 11px; color: var(--muted); }
+.buy-rating { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+.buy-rating:hover { color: var(--text); }
+.reviews { border-top: 1px solid var(--line); }
+.reviews-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 32px; flex-wrap: wrap; }
+.reviews-summary { display: flex; gap: 36px; align-items: center; }
+.reviews-avg { display: grid; justify-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.reviews-avg b { font-family: var(--font-display); font-weight: 400; font-size: 52px; line-height: 1; color: var(--text); }
+.reviews-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; font-size: 11px; color: var(--muted); }
+.reviews-bars li { display: grid; grid-template-columns: 24px 140px 20px; align-items: center; gap: 8px; }
+.reviews-bars i { display: block; height: 4px; background: var(--line); }
+.reviews-bars i i { height: 100%; background: var(--gold); }
+.reviews-list { list-style: none; margin: 28px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.reviews-list > li { background: #fbf8f2; border: 1px solid var(--line); padding: 22px 22px 20px; }
+.review-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; color: var(--muted); }
+.review-name { color: var(--text); font-weight: 500; }
+.review-verified { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
+.review-meta time { margin-left: auto; }
+.review-title { margin: 14px 0 0; font-family: var(--font-display); font-weight: 500; font-size: 20px; }
+.review-body { margin: 8px 0 0; font-size: 14px; line-height: 1.65; white-space: pre-line; }
+.review-pics { display: flex; gap: 8px; margin-top: 14px; }
+.review-pics img { width: 72px; height: 72px; object-fit: cover; }
+.review-form { display: grid; gap: 14px; max-width: 640px; }
+.review-form label { display: grid; gap: 6px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.review-form label em { font-style: normal; text-transform: none; letter-spacing: 0; }
+.review-form input, .review-form textarea { font: inherit; font-size: 15px; letter-spacing: 0; text-transform: none; color: var(--text); background: #fbf8f2; border: 1px solid var(--line-2); padding: 12px 14px; }
+.review-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.review-rate { border: 0; margin: 0; padding: 0; }
+.review-rate legend { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.review-rate button { background: none; border: 0; padding: 0 3px; font-size: 28px; line-height: 1; color: var(--line-2); cursor: pointer; }
+.review-rate button.on { color: var(--gold); }
+.review-rate-word { margin-left: 10px; font-size: 13px; color: var(--muted); }
+.review-error { color: #9b2c2c; font-size: 13px; margin: 0; }
+.review-thanks { font-family: var(--font-display); font-size: 22px; font-style: italic; }
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+@media (max-width: 760px) {
+  .reviews-summary { gap: 20px; }
+  .reviews-bars li { grid-template-columns: 24px 90px 20px; }
+  .review-form-row { grid-template-columns: 1fr; }
+}

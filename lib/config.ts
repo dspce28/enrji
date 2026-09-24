@@ -4,7 +4,9 @@
 // When enrji.in moves to this site, point Shopify at a subdomain (e.g. shop.enrji.in) and update this.
 export const STORE_URL = (process.env.NEXT_PUBLIC_SHOPIFY_STORE_URL || 'https://enrji.in').replace(/\/$/, '');
 
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://enrji.logicubeit.com').replace(/\/$/, '');
+// This site's own address: canonical links, sitemap, and the share pictures WhatsApp/Instagram fetch.
+// Stays on the working Vercel address until enrji.logicubeit.com resolves; then set NEXT_PUBLIC_SITE_URL on Vercel.
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://enrji.vercel.app').replace(/\/$/, '');
 
 export const CONTACT = {
   whatsapp: '917069044494',

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getProducts, pillarOf, type Product } from '@/lib/catalogue';
 import { ShopGrid } from '@/components/ShopGrid';
+import { ratingsByHandle } from '@/lib/reviews';
 
 export const revalidate = 300;
 
@@ -23,6 +24,7 @@ export async function generateMetadata({ params }: { params: Promise<{ handle: s
 export default async function Collection({ params }: { params: Promise<{ handle: string }> }) {
   const c = COLLECTIONS[(await params).handle];
   if (!c) notFound();
+  const ratings = await ratingsByHandle();
   const products = (await getProducts()).filter((p) => (!c.kind || p.kind === c.kind) && (!c.filter || c.filter(p)));
   return (
     <div className="container">
@@ -31,7 +33,7 @@ export default async function Collection({ params }: { params: Promise<{ handle:
         <h1 className="display h1" style={{ marginTop: 14 }}>{c.title}</h1>
         <p className="lead" style={{ marginTop: 18 }}>{c.lead}</p>
       </header>
-      <ShopGrid items={products.map((p) => ({ p, pillar: pillarOf(p) }))} fixedKind={c.kind} />
+      <ShopGrid items={products.map((p) => ({ p, pillar: pillarOf(p), rating: ratings[p.handle] }))} fixedKind={c.kind} />
     </div>
   );
 }

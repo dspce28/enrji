@@ -2,13 +2,14 @@ import Link from 'next/link';
 import type { Product } from '@/lib/catalogue';
 import { cdn, srcSet, titleCase } from '@/lib/format';
 import { Price } from './Price';
+import { Stars } from './Stars';
 import flats from '@/data/garment-photos.json';
 
 const FLAT = flats as Record<string, { color: string; card?: boolean }>;
 /** Our own files, resized by Next's image optimiser. */
 const local = (src: string, w: number) => `/_next/image?url=${encodeURIComponent(src)}&w=${w}&q=75`;
 
-export function ProductCard({ p, priority = false, sizes = '(max-width: 760px) 50vw, (max-width: 1100px) 33vw, 25vw' }: { p: Product; priority?: boolean; sizes?: string }) {
+export function ProductCard({ p, priority = false, rating, sizes = '(max-width: 760px) 50vw, (max-width: 1100px) 33vw, 25vw' }: { p: Product; priority?: boolean; rating?: { average: number; count: number }; sizes?: string }) {
   // Every card leads with the same kind of shot: the garment on its hanger, cut out on the page's ivory
   // (public/garments, made by scripts/garment-cutouts.py). The worn photo shows on hover.
   const flat = FLAT[p.handle] && FLAT[p.handle].card !== false ? `/garments/${p.handle}.jpg` : null;
@@ -34,6 +35,7 @@ export function ProductCard({ p, priority = false, sizes = '(max-width: 760px) 5
         </div>
         <Price price={p.price} compareAt={p.compareAt} />
       </div>
+      {rating && <div className="card-rating" aria-label={`Rated ${rating.average.toFixed(1)} out of 5 by ${rating.count} customers`}><Stars value={rating.average} size={11} label={false} /><span>{rating.average.toFixed(1)} ({rating.count})</span></div>}
     </Link>
   );
 }

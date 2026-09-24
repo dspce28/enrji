@@ -10,6 +10,11 @@ const securityHeaders = [
 
 const config: NextConfig = {
   poweredByHeader: false,
+  // Share pictures render on demand and read these from disk.
+  outputFileTracingIncludes: {
+    '/opengraph-image': ['./assets/fonts/**', './public/store/*.jpg'],
+    '/products/[handle]/opengraph-image': ['./assets/fonts/**', './public/store/*.jpg'],
+  },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },

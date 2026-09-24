@@ -28,6 +28,19 @@ The prints in `public/prints/` were cut out of the flat-lay product photos on en
 - Products without a usable flat-lay (Energy Fade, which is tone-on-tone black, and Healthy Is New Rich) have no artwork file, so the AI's own lettering stays.
 - For sharper results, replace any file with the print artwork from your designer: a transparent PNG trimmed to the print, named `<product-handle>.png` (per colour: `<handle>--<colour>.png`, e.g. `believe--black.png`).
 
+### Customer reviews (Judge.me)
+Reviews come from [Judge.me](https://judge.me), the Shopify reviews app. It emails buyers after delivery, holds every review for moderation, and marks buyers as verified. The site shows only reviews published there; it never stores or invents any.
+
+1. Install Judge.me on the Shopify store (the free plan is enough) and turn on review request emails.
+2. In Judge.me → Settings → Integrations → View API token, copy the **private** token.
+3. On Vercel → Settings → Environment Variables, add `JUDGEME_SHOP_DOMAIN` (the store's `….myshopify.com` domain) and `JUDGEME_PRIVATE_TOKEN`, then redeploy.
+
+With those set, product pages show stars under the title, a Reviews section (summary, reviews, "Write a review") and review data for Google. Shop and collection cards show stars too. Without them no review section appears. Reviews refresh every 10 minutes. Submissions go through `/api/reviews` to Judge.me and wait for approval there.
+
+### Share pictures
+Links shared on WhatsApp, Instagram and elsewhere show a 1200 × 630 picture. `app/opengraph-image.tsx` covers every page; `app/products/[handle]/opengraph-image.tsx` shows the piece worn with its name and price. They're drawn in the brand faces (`assets/fonts/`, SIL Open Font License).
+Share pictures and canonical links use `SITE_URL` (`lib/config.ts`), which defaults to https://enrji.vercel.app. Once enrji.logicubeit.com resolves, set `NEXT_PUBLIC_SITE_URL=https://enrji.logicubeit.com` on Vercel.
+
 ### 3D photos (Virtual Store)
 There is no 3D scan or turntable shoot. Each product's best model photo from the store is turned into a "3D photo" offline:
 depth from Depth Anything V2 Small (Apache-2.0), cut-out from BiRefNet lite (MIT), model photo chosen with MediaPipe pose.

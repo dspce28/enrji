@@ -1,0 +1,2 @@
+Cormorant Garamond (Christian Thalmann) and Jost (Owen Earl) are licensed under the SIL Open Font License 1.1:
+https://openfontlicense.org — used here only to draw the site's share images (app/**/opengraph-image.tsx).
