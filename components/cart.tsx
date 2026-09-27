@@ -17,6 +17,7 @@ export interface CartLine {
 
 interface CartState {
   ownStore: boolean;
+  offerTiers: { qty: number; percent: number }[];
   signedIn: boolean;
   wish: Set<number>;
   toggleWish(productId: number): Promise<void>;
@@ -62,7 +63,7 @@ function merge(a: CartLine[], b: CartLine[]) {
   return [...out.values()];
 }
 
-export function CartProvider({ children, ownStore = false }: { children: ReactNode; ownStore?: boolean }) {
+export function CartProvider({ children, ownStore = false, offerTiers = [] }: { children: ReactNode; ownStore?: boolean; offerTiers?: { qty: number; percent: number }[] }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [signedIn, setSignedIn] = useState(false);
   const [wish, setWish] = useState<Set<number>>(new Set());
@@ -178,12 +179,12 @@ export function CartProvider({ children, ownStore = false }: { children: ReactNo
   }, [lines, toast, ownStore]);
 
   const value = useMemo<CartState>(() => ({
-    ownStore, signedIn, wish, toggleWish,
+    ownStore, offerTiers, signedIn, wish, toggleWish,
     lines,
     count: lines.reduce((s, l) => s + l.quantity, 0),
     subtotal: lines.reduce((s, l) => s + l.price * l.quantity, 0),
     open, unavailable, setOpen, add, setQty, remove, clear, checkout, toast,
-  }), [ownStore, signedIn, wish, toggleWish, lines, open, unavailable, add, setQty, remove, clear, checkout, toast]);
+  }), [ownStore, offerTiers, signedIn, wish, toggleWish, lines, open, unavailable, add, setQty, remove, clear, checkout, toast]);
 
   return (
     <Ctx.Provider value={value}>

@@ -10,14 +10,14 @@ import { Price } from './Price';
 import { Stars } from './Stars';
 import { WishButton } from './WishButton';
 import { checkoutUrl } from '@/lib/checkout';
-import { MULTIBUY, PROMISES, whatsappLink } from '@/lib/config';
+import { PROMISES, whatsappLink } from '@/lib/config';
 import { cdn, inr, titleCase } from '@/lib/format';
 import { sizesFor } from '@/lib/sizes';
 
 const SWATCH: Record<string, string> = { blue: '#1d4b66', navy: '#1a2140', black: '#111', white: '#eee', grey: '#777' };
 
 export function ProductView({ p, twin, look, rating }: { p: Product; twin: Pick<Product, 'handle' | 'kind' | 'price' | 'images'> | null; look: GarmentLook; rating?: { average: number; count: number } | null }) {
-  const { add, setOpen, toast, ownStore } = useCart();
+  const { add, setOpen, toast, ownStore, offerTiers } = useCart();
   const firstColor = p.colors.find((c) => p.variants.some((v) => v.color === c && v.available)) ?? p.colors[0] ?? null;
   const [color, setColor] = useState<string | null>(firstColor);
   const [size, setSize] = useState<string | null>(null);
@@ -132,7 +132,7 @@ export function ProductView({ p, twin, look, rating }: { p: Product; twin: Pick<
         </div>
 
         <div className="offer">
-          {MULTIBUY.map((t) => <div key={t.qty}><b>Buy {t.qty}, save {t.off}%</b>Applied at checkout</div>)}
+          {offerTiers.map((t) => <div key={t.qty}><b>Buy {t.qty}, save {t.percent}%</b>Applied at checkout</div>)}
         </div>
 
         <Link href={`/trial-room?product=${p.handle}`} className="twin" style={{ borderStyle: 'dashed' }}>

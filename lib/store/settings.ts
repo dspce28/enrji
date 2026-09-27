@@ -7,7 +7,7 @@ export interface StoreSettings {
   cod: { enabled: boolean; fee: number; maxOrder: number };
   returns: { windowDays: number; exchangeOnly: boolean };
   gst: { threshold: number; rateUpTo: number; rateAbove: number };
-  store: { name: string; gstin: string; address: string };
+  store: { name: string; gstin: string; address: string; state: string; email: string; phone: string };
 }
 
 const DEFAULTS: StoreSettings = {
@@ -15,7 +15,7 @@ const DEFAULTS: StoreSettings = {
   cod: { enabled: true, fee: 0, maxOrder: 500000 },
   returns: { windowDays: 7, exchangeOnly: false },
   gst: { threshold: 250000, rateUpTo: 5, rateAbove: 18 },
-  store: { name: 'ENRJI', gstin: '', address: '' },
+  store: { name: 'ENRJI', gstin: '', address: '', state: 'Gujarat', email: '', phone: '' },
 };
 
 export async function getSettings(): Promise<StoreSettings> {

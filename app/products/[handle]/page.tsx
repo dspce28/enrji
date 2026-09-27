@@ -18,9 +18,9 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ handle: string }> }): Promise<Metadata> {
   const p = await getProduct((await params).handle);
   if (!p) return {};
-  const description = p.story[0]?.slice(0, 160);
+  const description = p.seoDescription || p.story[0]?.slice(0, 160);
   return {
-    title: titleCase(p.title),
+    title: p.seoTitle || titleCase(p.title),
     description,
     alternates: { canonical: `/products/${p.handle}` },
     // The share picture comes from ./opengraph-image.tsx.

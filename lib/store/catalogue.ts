@@ -29,6 +29,7 @@ export async function catalogueFromDb(): Promise<Product[]> {
       colors: [...new Set(variants.map((v) => v.color).filter((c): c is string => !!c))],
       price: cheapest?.price ?? 0, compareAt: cheapest?.compareAt ?? null,
       available: availableCount > 0, availableCount, createdAt: p.createdAt.toISOString(),
+      seoTitle: p.seoTitle, seoDescription: p.seoDescription,
     };
   });
 }

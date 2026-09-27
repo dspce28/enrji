@@ -3,10 +3,10 @@
 import Link from 'next/link';
 import { useCart } from './cart';
 import { inr, cdn } from '@/lib/format';
-import { MULTIBUY, PROMISES } from '@/lib/config';
+import { PROMISES } from '@/lib/config';
 
 export function CartDrawer() {
-  const { lines, open, setOpen, count, subtotal, setQty, remove, checkout, unavailable } = useCart();
+  const { lines, open, setOpen, count, subtotal, setQty, remove, checkout, unavailable, offerTiers } = useCart();
   const mrp = lines.reduce((s, l) => s + (l.compareAt ?? l.price) * l.quantity, 0);
   const blocked = lines.some((l) => unavailable.has(l.variantId));
 
@@ -60,7 +60,7 @@ export function CartDrawer() {
                 <div className="grand"><span>Subtotal</span><span>{inr(subtotal)}</span></div>
               </div>
               <button className="btn btn-gold btn-block" onClick={checkout} disabled={blocked}>Checkout securely →</button>
-              <p className="fine">Buy {MULTIBUY.map((t) => `${t.qty} save ${t.off}%`).join(' · ')}: eligible discounts are applied automatically at checkout. {PROMISES.payment}.</p>
+              <p className="fine">{offerTiers.length > 0 && <>Buy {offerTiers.map((t) => `${t.qty} save ${t.percent}%`).join(' · ')}: eligible discounts are applied automatically at checkout. </>}{PROMISES.payment}.</p>
             </div>
           </>
         )}

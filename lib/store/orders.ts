@@ -18,7 +18,7 @@ export const PAYMENT_WINDOW_MIN = 30;
 /** Test payments (a simulated gateway) only while Razorpay isn't set up and the site is in staging. */
 export const testPayments = !razorpayEnabled && otpOnScreen;
 
-const touchCatalogue = () => { try { revalidateTag('catalogue', 'max'); } catch { /* outside a request */ } };
+const touchCatalogue = () => { try { revalidateTag('catalogue', { expire: 0 }); } catch { /* outside a request */ } };
 
 async function event(tx: Tx, orderId: number, status: string, note?: string, byUser?: string) {
   await tx.insert(schema.orderEvents).values({ orderId, status, note, byUser });
@@ -217,4 +217,14 @@ export async function orderDetail(number: string, userId?: string) {
     db().select().from(schema.orderEvents).where(eq(schema.orderEvents.orderId, o.id)).orderBy(schema.orderEvents.at),
   ]);
   return { ...o, items, events, cancellable: CUSTOMER_CANCELLABLE.includes(o.status) };
+}
+
+/** The order history as the shopper sees it: no internal notes, no technical detail. */
+export function customerEvents<E extends { status: string; note: string | null }>(events: E[]) {
+  return events.filter((e) => e.status !== 'note').map((e) => (
+    e.status === 'refund_pending' ? { ...e, note: 'Your refund is being processed.' }
+      : e.status === 'cancelled' && e.note?.startsWith('Staff: ') ? { ...e, note: e.note.slice(7) }
+        : e.status === 'cancelled' && e.note?.includes('refund needed') ? { ...e, note: 'Payment received after the order expired; it will be refunded.' }
+          : e
+  ));
 }

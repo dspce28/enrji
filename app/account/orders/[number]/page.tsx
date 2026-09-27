@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { needUser } from '@/lib/store/pages';
-import { orderDetail, PAYMENT_WINDOW_MIN } from '@/lib/store/orders';
+import { customerEvents, orderDetail, PAYMENT_WINDOW_MIN } from '@/lib/store/orders';
+import { returnable, RETURN_LABEL } from '@/lib/store/returns';
 import { AccountShell } from '@/components/store/AccountNav';
 import { OrderActions } from '@/components/store/OrderActions';
 import { cdn } from '@/lib/format';
@@ -11,12 +12,13 @@ import { PAYMENT_LABEL, rs, STATUS_LABEL, TRACK } from '@/lib/orderStatus';
 export const metadata: Metadata = { title: 'Order', robots: { index: false } };
 export const dynamic = 'force-dynamic';
 
-export default async function OrderPage({ params, searchParams }: { params: Promise<{ number: string }>; searchParams: Promise<{ placed?: string; clear?: string; unpaid?: string }> }) {
+export default async function OrderPage({ params, searchParams }: { params: Promise<{ number: string }>; searchParams: Promise<{ placed?: string; clear?: string; unpaid?: string; return?: string }> }) {
   const { number } = await params;
   const sp = await searchParams;
   const u = await needUser(`/account/orders/${number}`);
   const o = await orderDetail(number, u.id);
   if (!o) notFound();
+  const ret = await returnable(number, u.id);
   const step = TRACK.indexOf(o.status as (typeof TRACK)[number]);
   const fmt = (d: Date) => d.toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
   const payBy = new Date(o.createdAt.getTime() + PAYMENT_WINDOW_MIN * 60_000);
@@ -29,7 +31,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
         <div className="banner warn">{sp.unpaid ? 'Payment wasn’t completed. ' : ''}We&apos;re holding your items until {payBy.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}. Complete the payment to confirm the order.</div>
       )}
       {o.status === 'cancelled' && (
-        <div className="banner warn">This order was cancelled{o.cancelReason ? ` (${o.cancelReason.replace(/^Customer: /, '')})` : ''}.{o.paymentStatus === 'refunded' ? ` ${rs(o.total)} has been refunded to your original payment method; it usually shows in 5–7 working days.` : o.paymentStatus === 'paid' ? ' Your refund is being processed.' : ''}</div>
+        <div className="banner warn">This order was cancelled{o.cancelReason ? ` (${o.cancelReason.replace(/^(Customer|Staff): /, '')})` : ''}.{o.paymentStatus === 'refunded' ? ` ${rs(o.total)} has been refunded to your original payment method; it usually shows in 5–7 working days.` : o.paymentStatus === 'paid' ? ' Your refund is being processed.' : ''}</div>
       )}
       <OrderActions number={o.number} canPay={o.status === 'pending_payment'} canCancel={o.cancellable} clearVariants={sp.clear === '1' && o.status !== 'pending_payment' ? o.items.map((i) => i.variantId) : []} />
 
@@ -37,6 +39,13 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
         <ol className="track" aria-label="Order progress">
           {TRACK.map((s, i) => <li key={s} className={i <= step ? 'done' : ''}><span>{STATUS_LABEL[s]}</span></li>)}
         </ol>
+      )}
+      {sp.return === '1' && <div className="banner good">Request received. We&apos;ll review it within a day and arrange the pickup.</div>}
+      {ret?.prior.map((r) => (
+        <div key={r.id} className="banner">{r.type === 'exchange' ? 'Exchange' : 'Return'} #{r.id}: <b>{RETURN_LABEL[r.status]}</b>{r.status === 'rejected' && r.notes ? ` (${r.notes})` : ''}{r.status === 'refunded' && r.refundAmount ? ` · ${rs(r.refundAmount)}` : ''}</div>
+      ))}
+      {ret?.open && ret.items.some((i) => i.left > 0) && (
+        <p><Link className="btn btn-ghost btn-sm" href={`/account/orders/${o.number}/return`}>Return or exchange</Link> <span className="muted">until {ret.until!.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span></p>
       )}
       {o.awb && <p className="muted">Shipped with {o.courier} · AWB {o.awb}{o.trackingUrl && <> · <a href={o.trackingUrl} target="_blank" rel="noopener">Track package</a></>}</p>}
 
@@ -70,7 +79,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           </div>
           <h3 style={{ marginTop: 28 }}>History</h3>
           <ul className="events">
-            {o.events.map((e) => <li key={e.id}><b>{STATUS_LABEL[e.status] ?? e.status}</b><span>{fmt(e.at)}</span>{e.note && <em>{e.note}</em>}</li>)}
+            {customerEvents(o.events).map((e) => <li key={e.id}><b>{STATUS_LABEL[e.status] ?? e.status}</b><span>{fmt(e.at)}</span>{e.note && <em>{e.note}</em>}</li>)}
           </ul>
         </div>
       </div>

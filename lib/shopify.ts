@@ -37,6 +37,8 @@ export interface Product {
   available: boolean;
   availableCount: number;
   createdAt: string;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
 }
 
 export interface RawVariant {

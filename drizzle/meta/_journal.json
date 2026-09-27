@@ -15,6 +15,13 @@
       "when": 1790517849777,
       "tag": "0001_order_numbers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790519550925,
+      "tag": "0002_returns_detail",
+      "breakpoints": true
     }
   ]
 }

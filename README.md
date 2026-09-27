@@ -11,7 +11,7 @@ The redesigned ENRJI website. It is a **Next.js front end over the live Shopify 
 
 With `DATABASE_URL` set, the site runs its own store: catalogue, stock, customers, carts, orders and payments live in Postgres (Drizzle ORM, `lib/db/schema.ts`). Without it, everything runs on Shopify exactly as before, so the switch is one setting.
 
-**What's built (phase 1, the shopper side)**
+**The shopper side (phase 1)**
 - Login with mobile number + OTP (`lib/store/auth.ts`): 6-digit codes, 5-minute expiry, 5 tries, rate limits per number and per network, hashed codes, 30-day httpOnly session. Until WhatsApp is connected the code is shown on screen, **only while the site is in staging** (`ALLOW_INDEXING` not `true`); at launch it turns off by itself.
 - Account: profile, address book, wishlist, a bag saved to the account (merged across devices), orders with a progress tracker, cancel before packing, pay-now for unfinished payments.
 - Checkout (`lib/store/pricing.ts`, `lib/store/orders.ts`): server-side pricing only; automatic "buy more, save more" offers; coupons (percent / flat / free shipping, dates, minimum order, usage limits, per-customer limits, first order only, tees/sweatshirts only, combinable or best-of); shipping and COD fee from settings; GST included per piece for invoices (5% up to ₹2,500 a piece, 18% above; confirm with your accountant). Stock is locked and taken in one transaction, so the last piece can't be sold twice; unpaid online orders release their stock after 30 minutes; cancelling returns stock and refunds.
@@ -23,7 +23,19 @@ With `DATABASE_URL` set, the site runs its own store: catalogue, stock, customer
 3. Redeploy. The build creates the tables and, on an empty database, imports the catalogue from Shopify (in-stock sizes get 20 units; set real stock in the admin).
 4. Razorpay: add `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` (test keys first) and the webhook (`/api/webhooks/razorpay`, events payment.captured, order.paid, payment.failed) with `RAZORPAY_WEBHOOK_SECRET`.
 
-**Next phases**: the admin (catalogue, stock, orders and deliveries, returns and exchanges, coupons and offers, customers, reports), then GST invoices, courier integration (Shiprocket), WhatsApp notifications and OTP, back-in-stock alerts, store credit.
+**The admin (`/admin`, phase 2)**
+Log in with a number listed in `ADMIN_PHONES`; add more people under Staff. **Staff** handle orders, returns, stock and see customers; **admins** also change products and prices, coupons and offers, reports, settings and staff. Every change is written to the activity log.
+- Dashboard: sales today / 7 / 30 days, what needs attention (to confirm, pack, ship, in transit, open returns, refunds due), low stock, latest orders.
+- Orders & deliveries: filter and search (number, name, phone, AWB), CSV export; confirm → packed → shipped (courier, AWB, tracking link) → out for delivery → delivered (COD marked collected); cancel with restock and automatic refund; record manual refunds; internal notes (not shown to customers); printable packing slip with a COD collect amount.
+- Returns & exchanges: customers ask from their order page within the return window (setting); staff approve / reject → picked up → received (restock if resellable) → refund (Razorpay automatically, or a UPI/bank reference for COD) or send the other size as a free replacement order.
+- Products: create and edit (name, web address, type, status, limited, tags, story, details, care, HSN, search title/description), photos (links, or uploads once Vercel Blob storage is added: `BLOB_READ_WRITE_TOKEN`), sizes/colours with SKU, price and MRP. The store updates immediately.
+- Inventory: set counts or +/− with a reason, full movement history per size, low / sold-out filters, stock file export and import (CSV: sku, stock).
+- Coupons & offers: coupon codes with every rule, usage counts; the "buy more, save more" tiers (the storefront's offer text follows them).
+- Customers: search, orders, spend, addresses; admins can put an account on hold.
+- Reports: sales by day, top products, payment methods, GST summary by HSN and rate split CGST+SGST / IGST by the store's state; CSV downloads.
+- Settings: shipping fee and free-shipping threshold, COD on/off, fee and limit, return window and exchange-only, GST rates, business details (GSTIN, state, address).
+
+**Next phase**: GST invoices (PDF), courier integration (Shiprocket: rates, labels, tracking), WhatsApp OTP and order messages, back-in-stock alerts, abandoned-cart reminders, store credit and gift cards.
 
 Local development: `DATABASE_URL=postgres://… npm run db:migrate && npm run db:import`, then `npm run dev`.
 

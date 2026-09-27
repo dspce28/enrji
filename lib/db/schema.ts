@@ -62,7 +62,7 @@ export const inventoryMovements = pgTable('inventory_movements', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   variantId: id64('variant_id').notNull().references(() => variants.id, { onDelete: 'cascade' }),
   delta: integer('delta').notNull(),
-  reason: text('reason').notNull().$type<'import' | 'adjust' | 'order' | 'cancel' | 'return' | 'restock' | 'expired'>(),
+  reason: text('reason').notNull().$type<'import' | 'adjust' | 'order' | 'cancel' | 'return' | 'restock' | 'expired' | 'damaged' | 'count'>(),
   orderId: id64('order_id'),
   note: text('note'),
   byUser: uuid('by_user'),
@@ -172,7 +172,7 @@ export const orders = pgTable('orders', {
   number: text('number').notNull().unique(),          // ENR-100001
   userId: uuid('user_id').notNull().references(() => users.id),
   status: text('status').notNull().$type<OrderStatus>(),
-  paymentMethod: text('payment_method').notNull().$type<'razorpay' | 'cod' | 'test'>(),
+  paymentMethod: text('payment_method').notNull().$type<'razorpay' | 'cod' | 'test' | 'exchange'>(),
   paymentStatus: text('payment_status').notNull().$type<PaymentStatus>(),
   subtotal: integer('subtotal').notNull(),            // sum of line prices (paise)
   offerDiscount: integer('offer_discount').notNull().default(0),
@@ -251,7 +251,11 @@ export const returns = pgTable('returns', {
   reason: text('reason').notNull(),
   items: jsonb('items').notNull().$type<{ orderItemId: number; quantity: number; exchangeVariantId?: number }[]>(),
   refundAmount: integer('refund_amount'),
-  notes: text('notes'),
+  refundRef: text('refund_ref'),
+  restocked: boolean('restocked').notNull().default(false),
+  exchangeOrderId: id64('exchange_order_id'),
+  comments: text('comments'),                          // from the customer
+  notes: text('notes'),                                // internal
   createdAt: created(),
   updatedAt: updated(),
 }, (t) => [index('returns_order').on(t.orderId)]);

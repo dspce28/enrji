@@ -13,7 +13,7 @@ const BARS = 10;
  * Shown once per visit (sessionStorage), never to reduced-motion users, and never without JavaScript:
  * PRELOAD_SCRIPT (run in <head>, before the first paint) decides, by setting html.preloading.
  */
-export const PRELOAD_SCRIPT = `try{var d=document.documentElement;if(!sessionStorage.getItem('enrji-intro')&&!matchMedia('(prefers-reduced-motion: reduce)').matches)d.classList.add('preloading')}catch(e){}`;
+export const PRELOAD_SCRIPT = `try{var d=document.documentElement;if(location.pathname.indexOf('/admin')!==0&&!sessionStorage.getItem('enrji-intro')&&!matchMedia('(prefers-reduced-motion: reduce)').matches)d.classList.add('preloading')}catch(e){}`;
 
 export function Preloader() {
   const root = useRef<HTMLDivElement>(null);
