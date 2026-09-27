@@ -8,6 +8,7 @@ import { useCart } from './cart';
 import { Gallery } from './Gallery';
 import { Price } from './Price';
 import { Stars } from './Stars';
+import { WishButton } from './WishButton';
 import { checkoutUrl } from '@/lib/checkout';
 import { MULTIBUY, PROMISES, whatsappLink } from '@/lib/config';
 import { cdn, inr, titleCase } from '@/lib/format';
@@ -16,7 +17,7 @@ import { sizesFor } from '@/lib/sizes';
 const SWATCH: Record<string, string> = { blue: '#1d4b66', navy: '#1a2140', black: '#111', white: '#eee', grey: '#777' };
 
 export function ProductView({ p, twin, look, rating }: { p: Product; twin: Pick<Product, 'handle' | 'kind' | 'price' | 'images'> | null; look: GarmentLook; rating?: { average: number; count: number } | null }) {
-  const { add, setOpen, toast } = useCart();
+  const { add, setOpen, toast, ownStore } = useCart();
   const firstColor = p.colors.find((c) => p.variants.some((v) => v.color === c && v.available)) ?? p.colors[0] ?? null;
   const [color, setColor] = useState<string | null>(firstColor);
   const [size, setSize] = useState<string | null>(null);
@@ -57,7 +58,7 @@ export function ProductView({ p, twin, look, rating }: { p: Product; twin: Pick<
 
   const buyNow = () => {
     if (!variant) return needSize();
-    window.location.href = checkoutUrl([{ variantId: variant.id, quantity: qty }]);
+    window.location.href = ownStore ? `/checkout?buy=${variant.id}x${qty}` : checkoutUrl([{ variantId: variant.id, quantity: qty }]);
   };
 
   const notifyText = `Hi ENRJI, please tell me when ${p.title}${color ? ` (${color})` : ''}${size ? ` in size ${size}` : ''} is back in stock.`;
@@ -120,6 +121,7 @@ export function ProductView({ p, twin, look, rating }: { p: Product; twin: Pick<
                   <button onClick={() => setQty((q) => Math.min(10, q + 1))} aria-label="Increase">+</button>
                 </div>
                 <button className="btn btn-ghost" onClick={addToCart}>Add to bag</button>
+                <WishButton productId={p.id} className="wish-pdp" />
               </div>
               <button className="btn btn-gold btn-block" onClick={buyNow}>Buy now{variant ? ` · ${inr(variant.price * qty)}` : ''}</button>
               {variants.some((v) => !v.available) && (

@@ -21,7 +21,8 @@ const RIGHT = [
 const NAV = [...LEFT, ...RIGHT];
 const isCurrent = (path: string, href: string) => (href === '/' ? path === '/' : path.startsWith(href));
 
-export function Header() {
+export function Header({ ownStore = false }: { ownStore?: boolean }) {
+  const account = ownStore ? '/account' : accountUrl;
   const path = usePathname();
   const { count, setOpen } = useCart();
   const [scrolled, setScrolled] = useState(false);
@@ -61,7 +62,12 @@ export function Header() {
               {RIGHT.map((n) => <Link key={n.href} href={n.href} aria-current={isCurrent(path, n.href) ? 'page' : undefined}>{n.label}</Link>)}
             </nav>
             <div className="icons">
-              <a className="icon-btn" href={accountUrl} aria-label="Account">
+              {ownStore && (
+                <Link className="icon-btn" href="/account/wishlist" aria-label="Wishlist">
+                  <svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" /></svg>
+                </Link>
+              )}
+              <a className="icon-btn" href={account} aria-label="Account">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" /></svg>
               </a>
               <button className="icon-btn" onClick={() => setOpen(true)} aria-label={`Open bag, ${count} items`}>
@@ -79,7 +85,8 @@ export function Header() {
         </div>
         <nav aria-label="Mobile">
           {NAV.map((n) => <Link key={n.href} href={n.href} className={'primary' in n ? 'nav-primary' : undefined}>{n.label}</Link>)}
-          <a href={accountUrl}>Account</a>
+          {ownStore && <Link href="/account/wishlist">Wishlist</Link>}
+          <a href={account}>Account</a>
         </nav>
       </div>
     </>

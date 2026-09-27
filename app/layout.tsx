@@ -6,6 +6,7 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { SiteChrome } from '@/components/SiteChrome';
 import { Preloader, PRELOAD_SCRIPT } from '@/components/Preloader';
+import { ownStore } from '@/lib/db';
 import { SITE_URL, MULTIBUY, PROMISES } from '@/lib/config';
 import { Cormorant_Garamond, Jost, Unbounded } from 'next/font/google';
 
@@ -45,14 +46,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <Preloader />
-        <CartProvider>
+        <CartProvider ownStore={ownStore}>
           <SiteChrome>
             <div className="announce" aria-label="Offers">
               <div className="announce-track">
                 {[...announcements, ...announcements].map((a, i) => <span key={i}>{a}</span>)}
               </div>
             </div>
-            <Header />
+            <Header ownStore={ownStore} />
           </SiteChrome>
           <main id="main">{children}</main>
           <SiteChrome><Footer /></SiteChrome>

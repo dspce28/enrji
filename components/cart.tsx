@@ -16,6 +16,10 @@ export interface CartLine {
 }
 
 interface CartState {
+  ownStore: boolean;
+  signedIn: boolean;
+  wish: Set<number>;
+  toggleWish(productId: number): Promise<void>;
   lines: CartLine[];
   count: number;
   subtotal: number;
@@ -25,6 +29,7 @@ interface CartState {
   add(line: CartLine): void;
   setQty(variantId: number, qty: number): void;
   remove(variantId: number): void;
+  clear(): void;
   checkout(): Promise<void>;
   toast(message: string): void;
 }
@@ -47,8 +52,21 @@ async function fetchAvailability(ids: number[]): Promise<Record<string, boolean>
   return res.json();
 }
 
-export function CartProvider({ children }: { children: ReactNode }) {
+/** Merge two carts: every variant from both, the larger quantity of each. */
+function merge(a: CartLine[], b: CartLine[]) {
+  const out = new Map<number, CartLine>();
+  for (const l of [...a, ...b]) {
+    const cur = out.get(l.variantId);
+    out.set(l.variantId, cur ? { ...l, quantity: Math.min(MAX_QTY, Math.max(cur.quantity, l.quantity)) } : l);
+  }
+  return [...out.values()];
+}
+
+export function CartProvider({ children, ownStore = false }: { children: ReactNode; ownStore?: boolean }) {
   const [lines, setLines] = useState<CartLine[]>([]);
+  const [signedIn, setSignedIn] = useState(false);
+  const [wish, setWish] = useState<Set<number>>(new Set());
+  const synced = useRef(false);
   const [open, setOpen] = useState(false);
   const [unavailable, setUnavailable] = useState<Set<number>>(new Set());
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -73,6 +91,41 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (!loaded.current) return;
     try { localStorage.setItem(KEY, JSON.stringify(lines)); } catch { /* storage unavailable */ }
   }, [lines]);
+
+  // Signed in to ENRJI's own store: bring in the cart saved on the account (merged with this device's),
+  // then keep the account copy up to date so the bag follows the shopper across devices.
+  useEffect(() => {
+    if (!ownStore) return;
+    let cancelled = false;
+    (async () => {
+      const res = await fetch('/api/cart', { cache: 'no-store' }).catch(() => null);
+      if (!res?.ok || cancelled) return;
+      setSignedIn(true);
+      const server = ((await res.json()).lines ?? []) as CartLine[];
+      let local: CartLine[] = [];
+      try { local = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { /* ignore */ }
+      synced.current = true;
+      setLines(merge(server, local));
+      fetch('/api/wishlist', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((j) => j && setWish(new Set(j.ids))).catch(() => {});
+    })();
+    return () => { cancelled = true; };
+  }, [ownStore]);
+
+  useEffect(() => {
+    if (!synced.current) return;
+    const t = setTimeout(() => {
+      fetch('/api/cart', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lines: lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity })) }) }).catch(() => {});
+    }, 500);
+    return () => clearTimeout(t);
+  }, [lines]);
+
+  const toggleWish = useCallback(async (productId: number) => {
+    if (!signedIn) { window.location.href = `/login?next=${encodeURIComponent(location.pathname)}`; return; }
+    const on = !wish.has(productId);
+    setWish((w) => { const n = new Set(w); if (on) n.add(productId); else n.delete(productId); return n; });
+    const res = await fetch('/api/wishlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productId, on }) }).catch(() => null);
+    if (res?.ok) setWish(new Set((await res.json()).ids));
+  }, [signedIn, wish]);
 
   // Re-check stock whenever the drawer opens.
   useEffect(() => {
@@ -109,6 +162,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const remove = useCallback((variantId: number) => setLines((cur) => cur.filter((l) => l.variantId !== variantId)), []);
+  const clear = useCallback(() => setLines([]), []);
 
   const checkout = useCallback(async () => {
     try {
@@ -119,16 +173,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
         toast(`${gone[0].title} (${gone[0].size}) just sold out — remove it to continue`);
         return;
       }
-    } catch { /* Shopify checkout re-checks stock anyway */ }
-    window.location.href = checkoutUrl(lines);
-  }, [lines, toast]);
+    } catch { /* checkout re-checks stock anyway */ }
+    window.location.href = ownStore ? '/checkout' : checkoutUrl(lines);
+  }, [lines, toast, ownStore]);
 
   const value = useMemo<CartState>(() => ({
+    ownStore, signedIn, wish, toggleWish,
     lines,
     count: lines.reduce((s, l) => s + l.quantity, 0),
     subtotal: lines.reduce((s, l) => s + l.price * l.quantity, 0),
-    open, unavailable, setOpen, add, setQty, remove, checkout, toast,
-  }), [lines, open, unavailable, add, setQty, remove, checkout, toast]);
+    open, unavailable, setOpen, add, setQty, remove, clear, checkout, toast,
+  }), [ownStore, signedIn, wish, toggleWish, lines, open, unavailable, add, setQty, remove, clear, checkout, toast]);
 
   return (
     <Ctx.Provider value={value}>

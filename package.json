@@ -5,7 +5,10 @@
   "description": "ENRJI storefront — Next.js front end over the live Shopify store",
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/prints-manifest.mjs && next build",
+    "build": "node scripts/prints-manifest.mjs && node scripts/db-migrate.mjs && next build",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node scripts/db-migrate.mjs",
+    "db:import": "node --experimental-strip-types scripts/db-import-shopify.mjs",
     "start": "next start",
     "lint": "tsc --noEmit",
     "snapshot": "node scripts/snapshot-catalogue.mjs",
@@ -16,8 +19,10 @@
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.0.1",
+    "drizzle-orm": "^0.45.3",
     "gsap": "^3.15.0",
     "next": "^16.3.6",
+    "postgres": "^3.4.9",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "server-only": "^0.0.1",
@@ -29,6 +34,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/three": "^0.186.0",
+    "drizzle-kit": "^0.31.11",
     "typescript": "^5.9.3"
   }
 }

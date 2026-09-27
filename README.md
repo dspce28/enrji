@@ -7,6 +7,26 @@ The redesigned ENRJI website. It is a **Next.js front end over the live Shopify 
 - Products are read from the store's public feed (`/products.json`) and refreshed every 5 minutes. A snapshot in `data/catalogue-snapshot.json` keeps the site up if the store can't be reached.
 - **Add to bag** keeps a cart in the browser; **Checkout** and **Buy now** hand off to Shopify's own checkout through a [cart permalink](https://help.shopify.com/en/manual/products/details/cart-permalink). **Orders placed on staging are real orders** in the live Shopify admin.
 
+## ENRJI's own store (replacing Shopify)
+
+With `DATABASE_URL` set, the site runs its own store: catalogue, stock, customers, carts, orders and payments live in Postgres (Drizzle ORM, `lib/db/schema.ts`). Without it, everything runs on Shopify exactly as before, so the switch is one setting.
+
+**What's built (phase 1, the shopper side)**
+- Login with mobile number + OTP (`lib/store/auth.ts`): 6-digit codes, 5-minute expiry, 5 tries, rate limits per number and per network, hashed codes, 30-day httpOnly session. Until WhatsApp is connected the code is shown on screen, **only while the site is in staging** (`ALLOW_INDEXING` not `true`); at launch it turns off by itself.
+- Account: profile, address book, wishlist, a bag saved to the account (merged across devices), orders with a progress tracker, cancel before packing, pay-now for unfinished payments.
+- Checkout (`lib/store/pricing.ts`, `lib/store/orders.ts`): server-side pricing only; automatic "buy more, save more" offers; coupons (percent / flat / free shipping, dates, minimum order, usage limits, per-customer limits, first order only, tees/sweatshirts only, combinable or best-of); shipping and COD fee from settings; GST included per piece for invoices (5% up to ₹2,500 a piece, 18% above; confirm with your accountant). Stock is locked and taken in one transaction, so the last piece can't be sold twice; unpaid online orders release their stock after 30 minutes; cancelling returns stock and refunds.
+- Payments: Razorpay (Checkout + signature check + webhook, refunds on cancel). Without Razorpay keys, staging uses a test gateway ("simulate success / failure"); COD always available within the COD limit.
+
+**Switching on (Vercel)**
+1. Vercel → project → Storage → Create → Neon (Postgres), connect it to this project (adds `DATABASE_URL`).
+2. Add `AUTH_SECRET` (any long random string) and `ADMIN_PHONES` (your number).
+3. Redeploy. The build creates the tables and, on an empty database, imports the catalogue from Shopify (in-stock sizes get 20 units; set real stock in the admin).
+4. Razorpay: add `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` (test keys first) and the webhook (`/api/webhooks/razorpay`, events payment.captured, order.paid, payment.failed) with `RAZORPAY_WEBHOOK_SECRET`.
+
+**Next phases**: the admin (catalogue, stock, orders and deliveries, returns and exchanges, coupons and offers, customers, reports), then GST invoices, courier integration (Shiprocket), WhatsApp notifications and OTP, back-in-stock alerts, store credit.
+
+Local development: `DATABASE_URL=postgres://… npm run db:migrate && npm run db:import`, then `npm run dev`.
+
 ## Features
 
 | | |

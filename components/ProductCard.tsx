@@ -3,6 +3,7 @@ import type { Product } from '@/lib/catalogue';
 import { cdn, srcSet, titleCase } from '@/lib/format';
 import { Price } from './Price';
 import { Stars } from './Stars';
+import { WishButton } from './WishButton';
 import flats from '@/data/garment-photos.json';
 
 const FLAT = flats as Record<string, { color: string; card?: boolean }>;
@@ -26,6 +27,7 @@ export function ProductCard({ p, priority = false, rating, sizes = '(max-width: 
         {a && <img src={cdn(a.src, 720)} srcSet={srcSet(a.src)} sizes={sizes} alt={titleCase(p.title)} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : undefined} />}
         {flat && <span className="card-flat"><img src={local(flat, 640)} srcSet={[384, 640, 828].map((w) => `${local(flat, w)} ${w}w`).join(', ')} sizes={sizes} alt="" loading="lazy" /></span>}
         {b && <img className="alt" src={cdn(b.src, 720)} srcSet={srcSet(b.src)} sizes={sizes} alt="" loading="lazy" />}
+        <WishButton productId={p.id} className="wish-card" />
         {p.available && <span className="card-quick btn btn-light btn-sm btn-block">View & choose size</span>}
       </div>
       <div className="card-info">
