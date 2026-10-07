@@ -5,7 +5,6 @@ import { counterpart, getProduct, getProducts, PILLARS, pillarOf, type Product }
 import { cdn, titleCase } from '@/lib/format';
 import { SITE_URL } from '@/lib/config';
 import { ProductView } from '@/components/BuyBox';
-import { lookFor } from '@/lib/garmentData';
 import { ProductCard } from '@/components/ProductCard';
 import { Reviews } from '@/components/Reviews';
 import { ratingsByHandle, reviewsEnabled, reviewsFor, summarise } from '@/lib/reviews';
@@ -69,7 +68,7 @@ export default async function ProductPage({ params }: { params: Promise<{ handle
   return (
     <div className="container">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
-      <ProductView p={p} look={lookFor(p)} twin={twin && { handle: twin.handle, kind: twin.kind, price: twin.price, images: twin.images.slice(0, 1) }} rating={summary && { average: summary.average, count: summary.count }} pillar={pillar} pairing={pairing} />
+      <ProductView p={p} twin={twin && { handle: twin.handle, kind: twin.kind, price: twin.price, images: twin.images.slice(0, 1) }} rating={summary && { average: summary.average, count: summary.count }} pillar={pillar} pairing={pairing} />
       <section className="slogan-band" data-energy={pillar ?? undefined} aria-label={pillar ? PILLARS[pillar].title : 'Live Like Krishna'}>
         <p className="heavy slogan-word" aria-hidden>{p.baseName}</p>
         <div className="slogan-caption">

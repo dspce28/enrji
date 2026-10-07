@@ -50,7 +50,6 @@ Local development: `DATABASE_URL=postgres://… npm run db:migrate && npm run db
 | Home | Editorial "quiet luxury" page: paired model photographs that open from a centre window (tejint-style), a brand statement, the Live Like Krishna edition, category tiles, a curated edit, an index of the four energies with floating photographs, the founder's words |
 | Lookbook | Two full-screen pages built to the same behaviour as tejint.com. `/lookbook` (after tejint.com/studio): a row of editorial photographs glided by scroll, swipe or drag, each sized by its position on screen (half size on the left, up to 1.75× on the right), fabric ground, vertical sidebar, animated buttons. `/lookbook/energies` (after tejint.com's home carousel): the four energies as a centre card with its neighbours turned 90° and cropped either side, the "hop" ease, letter-by-letter titles and a breathing preview behind. Built with GSAP. Photos: `data/lookbook.json` and the COVER list in `app/lookbook/energies/page.tsx` |
 | Virtual Store | Black-and-gold walkable 3D store (Three.js) with an animated entrance; the model photos on the walls have real depth; life-size 3D models on the centre stage and on plinths turn to face you; guided tour; tap anything to add to bag |
-| 360° view | Product pages and the Trial Room show each tee/sweatshirt as a 3D garment in its real colour and print; drag to spin |
 
 ### Trial Room print artwork
 AI try-on models draw lettering approximately ("SELLNG"). After the model dresses the photo, `lib/printOverlay.ts` finds the print it drew on the chest, erases it (keeping the fabric's shading), and lays the real artwork in its place. Visible hands and hair stay in front of it. When it can't do this cleanly (no print found, an odd size, or a forearm across the chest), it leaves the model's print as it is.
@@ -136,7 +135,6 @@ lib/catalogue.ts     Shopify feed → typed products (hides internal test produc
 lib/checkout.ts      Shopify cart permalink
 lib/config.ts        store URL, contact details, shipping/returns wording, offers
 lib/garment.ts       garment + print renderer (flat)
-lib/garment3d.ts     3D garment for the 360° view
 lib/depthPortrait.ts 3D photos of the model shots (Virtual Store)
 lib/bodyTracking.ts  on-device pose + segmentation (models self-hosted by scripts/vision-assets.mjs)
 lib/wornRenderer.ts  WebGL compositor that makes the garment look worn

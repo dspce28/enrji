@@ -1,5 +1,5 @@
 /* ENRJI design system: quiet luxury. Ivory paper, ink, bronze; a classical serif for display, a light geometric sans for text.
-   The Virtual Store and the Trial Room stage are "noir" rooms (dark tokens, see .vstore / .stage / .g360). */
+   The Virtual Store and the Trial Room stage are "noir" rooms (dark tokens, see .vstore / .stage). */
 :root {
   --bg: #f5f0e8;
   --bg-2: #eee7db;
@@ -31,7 +31,7 @@
   color-scheme: light;
 }
 /* Dark rooms keep the black-and-gold palette. */
-.vstore, .stage, .g360, .noir {
+.vstore, .stage, .noir {
   --bg: #09090a; --bg-2: #0f0f11; --surface: #141416; --surface-2: #1b1b1e;
   --line: rgba(255, 244, 225, 0.09); --line-2: rgba(255, 244, 225, 0.18);
   --text: #f4efe6; --muted: #a29b90; --dim: #6f6a62;
@@ -442,21 +442,10 @@ input[type='checkbox'] { accent-color: var(--gold); }
 }
 
 /* ---------- 360° garment viewer ---------- */
-.g360 { position: relative; width: 100%; height: 100%; min-height: 360px; border-radius: var(--radius); overflow: hidden;
   background: radial-gradient(60% 55% at 50% 45%, rgba(217, 171, 82, .16), transparent 70%), radial-gradient(90% 70% at 50% 110%, rgba(255, 244, 225, .05), transparent 60%), var(--surface); }
-.g360 canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
-.g360 canvas:active { cursor: grabbing; }
-.g360-hint { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 6px 14px; border-radius: 99px; background: rgba(9, 9, 10, .6); backdrop-filter: blur(8px); border: 1px solid var(--line); pointer-events: none; }
-.g360-hint span { color: var(--gold); font-size: 15px; }
-.g360-loading { position: absolute; inset: 0; display: grid; place-items: center; }
-.g360-loading span { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--line-2); border-top-color: var(--gold); animation: spin 0.9s linear infinite; }
-.view-toggle { position: absolute; top: 14px; right: 14px; z-index: 2; display: flex; gap: 0; background: var(--glass); backdrop-filter: blur(10px); border: 1px solid var(--line); }
-.view-toggle button { height: 32px; padding: 0 14px; border: 0; background: transparent; font-size: 10px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; cursor: pointer; color: var(--muted); }
-.view-toggle button[aria-pressed='true'] { background: var(--ink); color: var(--on-ink); }
 
 /* trial room: worn view */
 .stage-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; min-height: 42px; }
-.view-toggle.static { position: static; }
 .scan-status { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 12px; border-radius: 99px; border: 1px solid var(--line-2); color: var(--muted); }
 .scan-status.ok { color: var(--ok); border-color: rgba(143, 214, 148, .35); }
 .scan-status.warn { color: var(--gold-2); border-color: rgba(217, 171, 82, .45); }

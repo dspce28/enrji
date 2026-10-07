@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Product } from '@/lib/catalogue';
-import type { GarmentLook } from '@/lib/look';
 import { useCart } from './cart';
 import { Gallery } from './Gallery';
 import { Price } from './Price';
@@ -18,8 +17,8 @@ import { sizesFor } from '@/lib/sizes';
 
 const SWATCH: Record<string, string> = { blue: '#1d4b66', navy: '#1a2140', black: '#111', white: '#eee', grey: '#777' };
 
-export function ProductView({ p, twin, look, rating, pillar = null, pairing = null }: {
-  p: Product; twin: Pick<Product, 'handle' | 'kind' | 'price' | 'images'> | null; look: GarmentLook;
+export function ProductView({ p, twin, rating, pillar = null, pairing = null }: {
+  p: Product; twin: Pick<Product, 'handle' | 'kind' | 'price' | 'images'> | null;
   rating?: { average: number; count: number } | null; pillar?: Pillar | null; pairing?: Product | null;
 }) {
   const { add, setOpen, toast, ownStore, offerTiers } = useCart();
@@ -74,7 +73,7 @@ export function ProductView({ p, twin, look, rating, pillar = null, pairing = nu
 
   return (
     <div className="pdp">
-      <Gallery images={p.images} color={color} title={titleCase(p.title)} kind={p.kind} slogan={p.baseName} look={look} />
+      <Gallery images={p.images} color={color} title={titleCase(p.title)} />
 
       <div className="buybox">
         <div>
