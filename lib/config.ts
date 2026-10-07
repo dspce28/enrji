@@ -30,6 +30,13 @@ export const PROMISES = {
   returns: 'Wrong or defective item? Tell us within 48 hours of delivery.',
 };
 
+// The delivery promise above, in working days from payment, for the "arrives by" date on product pages.
+export const DELIVERY_DAYS = { min: 6, max: 7 };
+
+// Who's wearing what in the product photos, shown under the size picker. Leave null until the team confirms
+// the real numbers; never guess them. e.g. tee: "Model is 6'0\" (183 cm) and wears L".
+export const MODEL_FIT: Record<'tee' | 'sweatshirt', string | null> = { tee: null, sweatshirt: null };
+
 // Shown on product pages; the store applies these automatically at checkout.
 export const MULTIBUY = [
   { qty: 2, off: 10 },

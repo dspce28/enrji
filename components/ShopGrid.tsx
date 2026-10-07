@@ -2,12 +2,12 @@
 
 import { Suspense, useMemo } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import type { Product, Pillar } from '@/lib/catalogue';
+import type { Product } from '@/lib/catalogue';
+import { PILLARS, type Pillar } from '@/lib/energies';
 import { ProductCard } from './ProductCard';
 
 export interface ShopItem { p: Product; pillar: Pillar | null; rating?: { average: number; count: number } }
 
-const PILLAR_LABELS: Record<Pillar, string> = { mental: 'Mental', emotional: 'Emotional', physical: 'Physical', spiritual: 'Spiritual' };
 
 type GridProps = { items: ShopItem[]; fixedKind?: 'tee' | 'sweatshirt' };
 const NO_FILTERS = new URLSearchParams();
@@ -48,6 +48,12 @@ function Grid({ items, fixedKind, params }: GridProps & { params: URLSearchParam
 
   return (
     <>
+      {pillar && PILLARS[pillar] && (
+        <div className="energy-head" data-energy={pillar} key={pillar}>
+          <p className="heavy energy-word" aria-hidden>{PILLARS[pillar].name}</p>
+          <p className="energy-sub"><b>{PILLARS[pillar].title}</b> · {PILLARS[pillar].line}</p>
+        </div>
+      )}
       <div className="filters" role="toolbar" aria-label="Filter products">
         {!fixedKind && (
           <>
@@ -57,8 +63,8 @@ function Grid({ items, fixedKind, params }: GridProps & { params: URLSearchParam
             <span style={{ width: 1, height: 24, background: 'var(--line-2)', margin: '0 6px' }} />
           </>
         )}
-        {(Object.keys(PILLAR_LABELS) as Pillar[]).map((k) => (
-          <button key={k} className="pill" aria-pressed={pillar === k} onClick={() => set('pillar', pillar === k ? null : k)}>{PILLAR_LABELS[k]}</button>
+        {(Object.keys(PILLARS) as Pillar[]).map((k) => (
+          <button key={k} className="pill pill-energy" data-energy={k} aria-pressed={pillar === k} onClick={() => set('pillar', pillar === k ? null : k)}>{PILLARS[k].name}</button>
         ))}
         <button className="pill" aria-pressed={inStock} onClick={() => set('stock', inStock ? null : '1')}>In stock</button>
         <select className="select" value={sort} onChange={(e) => set('sort', e.target.value === 'featured' ? null : e.target.value)} aria-label="Sort">

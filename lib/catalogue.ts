@@ -50,19 +50,5 @@ export function counterpart(all: Product[], p: Product) {
   return all.find((q) => q.handle !== p.handle && q.kind !== p.kind && q.baseName.toLowerCase() === p.baseName.toLowerCase()) ?? null;
 }
 
-// The four ENRJI pillars from "Our Story", each mapped to the slogans that carry it.
-export const PILLARS = {
-  mental: { title: 'Mental ENRJI', line: 'Clear thinking. Continuous learning. Focus.', words: ['mindset', 'focus', 'massive action', 'never give up', 'selling is serving', 'business is seva', 'money is energy'] },
-  emotional: { title: 'Emotional ENRJI', line: 'Better relationships. Gratitude. Purpose.', words: ['love is my superpower', 'family is my strength', 'grateful', 'accept & appreciate', 'happiness', 'be the change'] },
-  physical: { title: 'Physical ENRJI', line: 'Strength. Health. Discipline.', words: ['health is my new religion', 'healthy is new rich', 'energy step', 'energy fade', 'i am energy'] },
-  spiritual: { title: 'Spiritual ENRJI', line: 'Inner peace. Balance. Growth.', words: ['manifesting', 'tathastu', 'believe', 'surrender'] },
-} as const;
-export type Pillar = keyof typeof PILLARS;
-
-export function pillarOf(p: Product): Pillar | null {
-  const name = p.baseName.toLowerCase();
-  for (const [key, def] of Object.entries(PILLARS) as [Pillar, (typeof PILLARS)[Pillar]][]) {
-    if (def.words.some((w) => name.startsWith(w))) return key;
-  }
-  return null;
-}
+// The four energies live in ./energies (client-safe); re-exported for the pages that already import them here.
+export { PILLARS, pillarOf, type Pillar } from './energies';

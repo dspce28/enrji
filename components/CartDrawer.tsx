@@ -9,6 +9,11 @@ export function CartDrawer() {
   const { lines, open, setOpen, count, subtotal, setQty, remove, checkout, unavailable, offerTiers } = useCart();
   const mrp = lines.reduce((s, l) => s + (l.compareAt ?? l.price) * l.quantity, 0);
   const blocked = lines.some((l) => unavailable.has(l.variantId));
+  // The automatic multibuy offer, estimated here; checkout prices it for real (a coupon may beat it there).
+  const tiers = [...offerTiers].sort((a, b) => a.qty - b.qty);
+  const tier = [...tiers].reverse().find((t) => count >= t.qty) ?? null;
+  const next = tiers.find((t) => t.qty > count) ?? null;
+  const saving = tier ? Math.round((subtotal * tier.percent) / 100) : 0;
 
   return (
     <>
@@ -54,13 +59,21 @@ export function CartDrawer() {
               ))}
             </div>
             <div className="drawer-foot">
+              {next && (
+                <div className="nudge">
+                  <span>Add {next.qty - count} more {next.qty - count === 1 ? 'piece' : 'pieces'} to save <b>{next.percent}%</b> on everything</span>
+                  <span className="nudge-bar" aria-hidden><i style={{ width: `${Math.min(100, (count / next.qty) * 100)}%` }} /></span>
+                </div>
+              )}
               <div className="totals">
                 {mrp > subtotal && <div><span>MRP</span><s>{inr(mrp)}</s></div>}
+                <div><span>Subtotal</span><span>{inr(subtotal)}</span></div>
+                {tier && saving > 0 && <div className="saving"><span>Buy {tier.qty}+ · {tier.percent}% off</span><span>−{inr(saving)}</span></div>}
                 <div><span>Shipping</span><span>Free</span></div>
-                <div className="grand"><span>Subtotal</span><span>{inr(subtotal)}</span></div>
+                <div className="grand"><span>{saving > 0 ? 'Estimated total' : 'Total'}</span><span>{inr(subtotal - saving)}</span></div>
               </div>
               <button className="btn btn-gold btn-block" onClick={checkout} disabled={blocked}>Checkout securely →</button>
-              <p className="fine">{offerTiers.length > 0 && <>Buy {offerTiers.map((t) => `${t.qty} save ${t.percent}%`).join(' · ')}: eligible discounts are applied automatically at checkout. </>}{PROMISES.payment}.</p>
+              <p className="fine">{saving > 0 && <>Your offer is applied automatically at checkout. </>}{PROMISES.payment}.</p>
             </div>
           </>
         )}

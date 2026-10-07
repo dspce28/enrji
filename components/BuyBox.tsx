@@ -10,13 +10,18 @@ import { Price } from './Price';
 import { Stars } from './Stars';
 import { WishButton } from './WishButton';
 import { checkoutUrl } from '@/lib/checkout';
-import { PROMISES, whatsappLink } from '@/lib/config';
+import { MODEL_FIT, PROMISES, whatsappLink } from '@/lib/config';
+import { PILLARS, type Pillar } from '@/lib/energies';
+import { deliveryWindow } from '@/lib/delivery';
 import { cdn, inr, titleCase } from '@/lib/format';
 import { sizesFor } from '@/lib/sizes';
 
 const SWATCH: Record<string, string> = { blue: '#1d4b66', navy: '#1a2140', black: '#111', white: '#eee', grey: '#777' };
 
-export function ProductView({ p, twin, look, rating }: { p: Product; twin: Pick<Product, 'handle' | 'kind' | 'price' | 'images'> | null; look: GarmentLook; rating?: { average: number; count: number } | null }) {
+export function ProductView({ p, twin, look, rating, pillar = null, pairing = null }: {
+  p: Product; twin: Pick<Product, 'handle' | 'kind' | 'price' | 'images'> | null; look: GarmentLook;
+  rating?: { average: number; count: number } | null; pillar?: Pillar | null; pairing?: Product | null;
+}) {
   const { add, setOpen, toast, ownStore, offerTiers } = useCart();
   const firstColor = p.colors.find((c) => p.variants.some((v) => v.color === c && v.available)) ?? p.colors[0] ?? null;
   const [color, setColor] = useState<string | null>(firstColor);
@@ -28,6 +33,10 @@ export function ProductView({ p, twin, look, rating }: { p: Product; twin: Pick<
   const variants = useMemo(() => p.variants.filter((v) => !color || v.color === color), [p.variants, color]);
   const variant = variants.find((v) => v.size === size) ?? null;
   const allOut = !variants.some((v) => v.available);
+  const measure = variant && sizesFor(p.kind).find((s) => s.size === variant.size);
+  // The date depends on today, so it's worked out in the browser (the page itself is cached for minutes).
+  const [arrives, setArrives] = useState<string | null>(null);
+  useEffect(() => setArrives(deliveryWindow()), []);
 
   useEffect(() => {
     // Keep the chosen size only if it's still buyable in the new colour.
@@ -69,7 +78,10 @@ export function ProductView({ p, twin, look, rating }: { p: Product; twin: Pick<
 
       <div className="buybox">
         <div>
-          <p className="eyebrow">{p.limited ? 'Limited edition · Live Like Krishna' : p.kind === 'tee' ? 'Half-sleeve tee · 220 GSM' : 'Sweatshirt · 250 GSM'}</p>
+          <p className="eyebrow" data-energy={pillar ?? undefined}>
+            {pillar && <Link href={`/shop?pillar=${pillar}`} className="energy-tag">{PILLARS[pillar].title}</Link>}
+            {p.limited ? 'Limited edition · Live Like Krishna' : p.kind === 'tee' ? 'Half-sleeve tee · 220 GSM' : 'Sweatshirt · 250 GSM'}
+          </p>
           <h1 style={{ marginTop: 14 }}>{p.title}</h1>
           {rating && <a href="#reviews" className="buy-rating"><Stars value={rating.average} /> {rating.average.toFixed(1)} · {rating.count} review{rating.count === 1 ? '' : 's'}</a>}
         </div>
@@ -105,8 +117,14 @@ export function ProductView({ p, twin, look, rating }: { p: Product; twin: Pick<
             ))}
           </div>
           <p className={`stock-note${allOut ? ' out' : ''}`} style={{ marginTop: 10 }}>
-            {allOut ? 'Sold out in every size.' : variant ? `✓ Size ${variant.size} is in stock` : p.limited ? 'Relaxed fit — between sizes? Go one up.' : 'Unisex regular fit.'}
+            {allOut ? 'Sold out in every size.' : variant ? <>✓ Size {variant.size} is in stock{measure && <span className="muted"> · {measure.chest}″ chest, {measure.length}″ long</span>}</> : 'Choose your size'}
           </p>
+          {!allOut && (
+            <p className="fit-note">
+              {p.limited ? 'Relaxed fit. Between sizes? Go one up.' : 'Unisex regular fit: take your usual size. Between sizes, or like it loose? Go one up.'}
+              {MODEL_FIT[p.kind] && <> {MODEL_FIT[p.kind]}.</>}
+            </p>
+          )}
         </div>
 
         <div ref={buyRef} style={{ display: 'grid', gap: 10 }}>
@@ -124,6 +142,10 @@ export function ProductView({ p, twin, look, rating }: { p: Product; twin: Pick<
                 <WishButton productId={p.id} className="wish-pdp" />
               </div>
               <button className="btn btn-gold btn-block" onClick={buyNow}>Buy now{variant ? ` · ${inr(variant.price * qty)}` : ''}</button>
+              <p className="arrives">
+                <svg viewBox="0 0 24 24" aria-hidden><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7" /><circle cx="7" cy="17.5" r="1.6" /><circle cx="17" cy="17.5" r="1.6" /></svg>
+                <span>{arrives ? <>Order today, usually arrives <b>{arrives}</b></> : PROMISES.delivery} · free shipping</span>
+              </p>
               {variants.some((v) => !v.available) && (
                 <a href={whatsappLink(notifyText)} target="_blank" rel="noopener" className="muted" style={{ fontSize: 13, textDecoration: 'underline', textAlign: 'center' }}>Your size sold out? Get notified on WhatsApp</a>
               )}
@@ -131,9 +153,11 @@ export function ProductView({ p, twin, look, rating }: { p: Product; twin: Pick<
           )}
         </div>
 
-        <div className="offer">
-          {offerTiers.map((t) => <div key={t.qty}><b>Buy {t.qty}, save {t.percent}%</b>Applied at checkout</div>)}
-        </div>
+        {pairing ? (
+          <CompleteLook base={p} variant={variant} qty={qty} pairing={pairing} pillar={pillar} onNeedSize={needSize} />
+        ) : offerTiers.length > 0 && (
+          <p className="offer-line">{offerTiers.map((t) => `Buy ${t.qty}, save ${t.percent}%`).join(' · ')}, applied automatically at checkout.</p>
+        )}
 
         <Link href={`/trial-room?product=${p.handle}`} className="twin" style={{ borderStyle: 'dashed' }}>
           <span style={{ width: 56, height: 56, borderRadius: 12, display: 'grid', placeItems: 'center', background: 'rgba(217,171,82,.12)', fontSize: 24 }} aria-hidden>📸</span>
@@ -199,6 +223,55 @@ export function ProductView({ p, twin, look, rating }: { p: Product; twin: Pick<
         </div>
         <button className="btn btn-gold btn-sm" onClick={variant ? addToCart : needSize}>{variant ? 'Add to bag' : 'Choose size'}</button>
       </div>
+    </div>
+  );
+}
+
+/** A second piece from the same energy, added together with this one. Shows the multibuy saving honestly. */
+function CompleteLook({ base, variant, qty, pairing, pillar, onNeedSize }: {
+  base: Product; variant: Product['variants'][number] | null; qty: number; pairing: Product; pillar: Pillar | null; onNeedSize: () => void;
+}) {
+  const { add, setOpen, toast, offerTiers } = useCart();
+  const color = pairing.colors.find((c) => pairing.variants.some((v) => v.color === c && v.available)) ?? null;
+  const options = pairing.variants.filter((v) => !color || v.color === color);
+  const [picked, setPicked] = useState<string | null>(null);
+  // Follow the size chosen above, if this piece has it; the shopper can still pick another.
+  const size = picked ?? (variant && options.find((v) => v.size === variant.size && v.available)?.size) ?? null;
+  const other = options.find((v) => v.size === size && v.available) ?? null;
+
+  const pieces = qty + 1;
+  const tier = [...offerTiers].sort((a, b) => b.qty - a.qty).find((t) => pieces >= t.qty);
+  const together = (variant?.price ?? base.price) * qty + (other?.price ?? pairing.price);
+  const saving = tier ? Math.round((together * tier.percent) / 100) : 0;
+
+  const addBoth = () => {
+    if (!variant) return onNeedSize();
+    if (!other) { toast(`Choose a size for ${titleCase(pairing.baseName)}`); document.getElementById('pair-size')?.focus(); return; }
+    add({ variantId: variant.id, quantity: qty, handle: base.handle, title: titleCase(base.title), size: variant.size, color: variant.color, price: variant.price, compareAt: variant.compareAt, image: variant.image ?? base.images[0]?.src ?? null });
+    add({ variantId: other.id, quantity: 1, handle: pairing.handle, title: titleCase(pairing.title), size: other.size, color: other.color, price: other.price, compareAt: other.compareAt, image: other.image ?? pairing.images[0]?.src ?? null });
+    setOpen(true);
+  };
+
+  return (
+    <div className="pair" data-energy={pillar ?? undefined}>
+      <p className="eyebrow" style={{ margin: 0 }}>Complete the look{pillar ? ` · ${PILLARS[pillar].name} energy` : ''}</p>
+      <div className="pair-row">
+        <Link href={`/products/${pairing.handle}`} className="pair-img">
+          {pairing.images[0] && <img src={cdn(pairing.images[0].src, 240)} alt="" loading="lazy" />}
+        </Link>
+        <div style={{ minWidth: 0 }}>
+          <Link href={`/products/${pairing.handle}`} className="pair-title">{titleCase(pairing.title)}</Link>
+          <div className="muted" style={{ fontSize: 14 }}>{inr(other?.price ?? pairing.price)}</div>
+          <select id="pair-size" className="select pair-size" value={size ?? ''} onChange={(e) => setPicked(e.target.value || null)} aria-label={`Size for ${titleCase(pairing.title)}`}>
+            <option value="">Size</option>
+            {options.map((v) => <option key={v.id} value={v.size} disabled={!v.available}>{v.size}{v.available ? '' : ' (sold out)'}</option>)}
+          </select>
+        </div>
+      </div>
+      <button className="btn btn-ghost btn-block" onClick={addBoth}>
+        Add both to bag{saving > 0 ? <> · <span className="pair-save">save {inr(saving)}</span></> : null}
+      </button>
+      {tier && <p className="fine" style={{ margin: 0 }}>{tier.percent}% off {tier.qty}+ pieces, applied automatically at checkout.</p>}
     </div>
   );
 }

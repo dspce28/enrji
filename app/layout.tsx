@@ -7,7 +7,7 @@ import { Footer } from '@/components/Footer';
 import { SiteChrome } from '@/components/SiteChrome';
 import { Preloader, PRELOAD_SCRIPT } from '@/components/Preloader';
 import { ownStore } from '@/lib/db';
-import { SITE_URL, PROMISES } from '@/lib/config';
+import { SITE_URL } from '@/lib/config';
 import { offerTiers } from '@/lib/offerTiers';
 import { Cormorant_Garamond, Jost, Unbounded } from 'next/font/google';
 
@@ -31,12 +31,6 @@ export const viewport: Viewport = { themeColor: '#f5f0e8', width: 'device-width'
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const tiers = await offerTiers();
-  const announcements = [
-    PROMISES.shipping,
-    ...tiers.map((t) => `Buy ${t.qty}, save ${t.percent}%`),
-    'New: try any piece on in the Trial Room',
-    'Live Like Krishna — limited edition, never reprinted',
-  ];
   return (
     <html lang="en-IN" suppressHydrationWarning className={`${display.variable} ${body.variable} ${heavy.variable}`}>
       <head>
@@ -48,11 +42,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Preloader />
         <CartProvider ownStore={ownStore} offerTiers={tiers}>
           <SiteChrome>
-            <div className="announce" aria-label="Offers">
-              <div className="announce-track">
-                {[...announcements, ...announcements].map((a, i) => <span key={i}>{a}</span>)}
-              </div>
-            </div>
             <Header ownStore={ownStore} />
           </SiteChrome>
           <main id="main">{children}</main>

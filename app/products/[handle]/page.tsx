@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { counterpart, getProduct, getProducts } from '@/lib/catalogue';
+import Link from 'next/link';
+import { counterpart, getProduct, getProducts, PILLARS, pillarOf, type Product } from '@/lib/catalogue';
 import { cdn, titleCase } from '@/lib/format';
 import { SITE_URL } from '@/lib/config';
 import { ProductView } from '@/components/BuyBox';
@@ -34,7 +35,9 @@ export default async function ProductPage({ params }: { params: Promise<{ handle
   const p = all.find((x) => x.handle === handle);
   if (!p) notFound();
   const twin = counterpart(all, p);
-  const related = all.filter((x) => x.handle !== p.handle && x.handle !== twin?.handle && x.kind === p.kind && x.available).slice(0, 4);
+  const pillar = pillarOf(p);
+  const pairing = pairFor(all, p, twin);
+  const related = all.filter((x) => x.handle !== p.handle && x.handle !== twin?.handle && x.handle !== pairing?.handle && x.kind === p.kind && x.available).slice(0, 4);
   const [reviews, ratings] = await Promise.all([reviewsFor(p.handle), ratingsByHandle()]);
   const summary = summarise(reviews);
 
@@ -66,7 +69,14 @@ export default async function ProductPage({ params }: { params: Promise<{ handle
   return (
     <div className="container">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
-      <ProductView p={p} look={lookFor(p)} twin={twin && { handle: twin.handle, kind: twin.kind, price: twin.price, images: twin.images.slice(0, 1) }} rating={summary && { average: summary.average, count: summary.count }} />
+      <ProductView p={p} look={lookFor(p)} twin={twin && { handle: twin.handle, kind: twin.kind, price: twin.price, images: twin.images.slice(0, 1) }} rating={summary && { average: summary.average, count: summary.count }} pillar={pillar} pairing={pairing} />
+      <section className="slogan-band" data-energy={pillar ?? undefined} aria-label={pillar ? PILLARS[pillar].title : 'Live Like Krishna'}>
+        <p className="heavy slogan-word" aria-hidden>{p.baseName}</p>
+        <div className="slogan-caption">
+          <span>{pillar ? <><b>{PILLARS[pillar].title}</b> · {PILLARS[pillar].line}</> : p.limited ? <><b>Live Like Krishna</b> · Limited edition, never reprinted.</> : <b>Wear your energy</b>}</span>
+          <Link href={pillar ? `/shop?pillar=${pillar}` : p.limited ? '/collections/limited-edition' : '/shop'} className="link-arrow">{pillar ? `Shop ${PILLARS[pillar].name.toLowerCase()} energy` : 'Shop the collection'} →</Link>
+        </div>
+      </section>
       {reviewsEnabled && <Reviews handle={p.handle} reviews={reviews} summary={summary} />}
       {related.length > 0 && (
         <section className="section tight">
@@ -76,4 +86,16 @@ export default async function ProductPage({ params }: { params: Promise<{ handle
       )}
     </div>
   );
+}
+
+/**
+ * "Complete the look": a piece from the same energy in the other garment (a tee goes with a sweatshirt), else
+ * the same garment in the same energy. Never the same slogan; that's already offered as "Also available as".
+ */
+function pairFor(all: Product[], p: Product, twin: Product | null): Product | null {
+  const pillar = pillarOf(p);
+  if (!pillar) return null;
+  const ok = (x: Product) => x.available && x.handle !== p.handle && x.handle !== twin?.handle
+    && x.baseName.toLowerCase() !== p.baseName.toLowerCase() && pillarOf(x) === pillar;
+  return all.find((x) => ok(x) && x.kind !== p.kind) ?? all.find((x) => ok(x)) ?? null;
 }

@@ -23,8 +23,8 @@ export function EnergyList({ rows }: { rows: EnergyRow[] }) {
   return (
     <div className="energies" onPointerMove={onMove} onPointerLeave={() => setActive(null)}>
       {rows.map((r, n) => (
-        <Link key={r.key} href={`/shop?pillar=${r.key}`} className={`energy${active === n ? ' on' : ''}`} onPointerEnter={() => setActive(n)}>
-          <span className="energy-num">{String(n + 1).padStart(2, '0')}</span>
+        <Link key={r.key} href={`/shop?pillar=${r.key}`} className={`energy${active === n ? ' on' : ''}`} data-energy={r.key} onPointerEnter={() => setActive(n)}>
+          <span className="energy-num heavy">{String(n + 1).padStart(2, '0')}</span>
           <span className="energy-title">{r.title}</span>
           <span className="energy-line">{r.line}</span>
           <span className="energy-count">{r.count} pieces</span>
