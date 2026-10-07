@@ -441,9 +441,6 @@ input[type='checkbox'] { accent-color: var(--gold); }
   .hero-meta div:nth-child(3) { display: none; }
 }
 
-/* ---------- 360° garment viewer ---------- */
-  background: radial-gradient(60% 55% at 50% 45%, rgba(217, 171, 82, .16), transparent 70%), radial-gradient(90% 70% at 50% 110%, rgba(255, 244, 225, .05), transparent 60%), var(--surface); }
-
 /* trial room: worn view */
 .stage-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; min-height: 42px; }
 .scan-status { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 12px; border-radius: 99px; border: 1px solid var(--line-2); color: var(--muted); }
