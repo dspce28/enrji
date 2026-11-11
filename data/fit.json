@@ -1,0 +1,29 @@
+{
+  "models": {
+    "her": {
+      "label": "On her",
+      "pieces": [
+        "selling-is-serving-tee",
+        "business-is-seva",
+        "accept-appreciate",
+        "focus",
+        "grateful-gtb",
+        "business-is-seva-tee",
+        "health-is-my-new-religion",
+        "selling-is-serving-sweatshirt"
+      ]
+    },
+    "him": {
+      "label": "On him",
+      "pieces": [
+        "focus-sweatshirt",
+        "manifesting",
+        "family-is-my-strength-sweatshirt",
+        "happiness-sweatshirt",
+        "mindset-is-everything-sweatshirt",
+        "healthy-is-new-rich-sweatshirt",
+        "never-give-up-sweatshirt"
+      ]
+    }
+  }
+}

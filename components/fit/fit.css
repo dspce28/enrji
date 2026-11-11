@@ -1,0 +1,161 @@
+/* The Trial Room: a spatial try-on. A softly blurred room, the model in the middle, frosted-glass garment cards
+   curving round on an arc; settle on a piece and a line of light scans it onto the model. Scoped under .vf. */
+.vf {
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --sans: var(--f-body), 'Jost', system-ui, -apple-system, sans-serif;
+  --MH: min(78vh, 62vw);
+  --CW: min(14.8vw, 33vh);
+  position: fixed; inset: 0; z-index: 60; overflow: hidden;
+  background: #e9e4dc; color: #fff; font-family: var(--sans);
+  -webkit-font-smoothing: antialiased; user-select: none; -webkit-user-select: none;
+}
+.vf button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.vf a { color: inherit; }
+.vf-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (pointer: fine) { .vf, .vf * { cursor: none !important; } }
+
+/* Room */
+.vf-room { position: absolute; inset: -3%; background: url(/fit/room.webp) center / cover; filter: blur(2.5px) saturate(1.05); transform: scale(1.08); will-change: transform; }
+.vf-room::after { content: ''; position: absolute; inset: 0; background: radial-gradient(70% 60% at 50% 45%, rgba(255, 252, 246, .10), rgba(40, 30, 20, .16)); }
+
+/* The ghosted word behind the model, in the garments' heavy lettering */
+.vf-ghost {
+  position: absolute; z-index: 2; left: 50%; top: calc(50% - var(--MH) * .42); white-space: nowrap; pointer-events: none;
+  font: 800 calc(var(--MH) * .42) / .8 var(--f-heavy), 'Unbounded', var(--sans); letter-spacing: -.04em;
+  /* No outline stroke: on this typeface it traces the letters' overlapping inner shapes. */
+  color: rgba(255, 255, 255, .34); text-shadow: 0 1px 0 rgba(255, 255, 255, .35);
+}
+.vf-ghost span { display: inline-block; }
+
+/* Glass */
+.vf-glass {
+  background: linear-gradient(155deg, rgba(250, 248, 245, .30), rgba(150, 144, 136, .20) 48%, rgba(205, 200, 192, .24));
+  -webkit-backdrop-filter: blur(22px) saturate(1.5); backdrop-filter: blur(22px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, .5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), inset 0 -1px 0 rgba(255, 255, 255, .12), 0 20px 50px -24px rgba(40, 30, 20, .45);
+}
+
+/* Tabs */
+.vf-tabs { position: absolute; z-index: 30; left: 50%; top: 4.2vh; transform: translateX(-50%); display: flex; gap: 2px; padding: 5px; border-radius: 999px; }
+.vf-tabs > button, .vf-tabs > a {
+  position: relative; z-index: 1; height: 38px; padding: 0 22px; border-radius: 999px; display: inline-flex; align-items: center; white-space: nowrap;
+  font: 500 14px var(--sans); color: rgba(30, 30, 32, .72); text-decoration: none; transition: color .4s var(--ease);
+}
+.vf-tabs > [aria-selected='true'] { color: #111; }
+.vf-pill { position: absolute; z-index: 0; left: 5px; top: 5px; height: 38px; border-radius: 999px; background: rgba(255, 255, 255, .92); box-shadow: 0 4px 14px -6px rgba(0, 0, 0, .3); transition: transform .6s var(--ease), width .6s var(--ease); }
+
+/* Rail */
+.vf-rail { position: absolute; z-index: 30; left: max(18px, 1.8vw); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 10px; padding: 8px; border-radius: 999px; }
+.vf-rail > * { position: relative; width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; color: rgba(30, 30, 32, .8); transition: background .3s var(--ease); }
+.vf-rail > *:hover { background: rgba(255, 255, 255, .35); }
+.vf-rail > .on { background: rgba(255, 255, 255, .9); color: #111; }
+.vf-count { position: absolute; top: 4px; right: 3px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 99px; background: #111; color: #fff; font: 600 10px/16px var(--sans); font-style: normal; text-align: center; }
+
+/* Stage and the arc of cards */
+.vf-stage { position: absolute; inset: 0; z-index: 10; touch-action: pan-y; }
+.vf-arc { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+.vf-card {
+  position: absolute; left: calc(var(--CW) / -2); top: calc(var(--CW) * -.71); width: var(--CW); height: calc(var(--CW) * 1.42);
+  border-radius: 22px; overflow: hidden; will-change: transform, opacity; outline: none;
+}
+.vf-card:focus-visible { box-shadow: 0 0 0 2px #fff, 0 20px 50px -24px rgba(40, 30, 20, .45); }
+.vf-g { position: absolute; left: 8%; right: 8%; top: 5%; width: 84%; height: 66%; object-fit: contain; filter: drop-shadow(0 14px 14px rgba(40, 30, 20, .22)); pointer-events: none; }
+.vf-name, .vf-price { position: absolute; left: 8%; right: 8%; text-align: center; color: #fff; text-shadow: 0 1px 8px rgba(0, 0, 0, .18); line-height: 1.15; }
+.vf-name { bottom: 17%; font: 500 calc(var(--CW) * .068) / 1.15 var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vf-price { bottom: 7%; font: 700 calc(var(--CW) * .095) / 1 var(--sans); }
+.vf-sheen { position: absolute; inset: 0; background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, .5) 50%, transparent 60%); transform: translateX(-100%); pointer-events: none; }
+
+/* The model, and the scan that dresses them */
+.vf-model { position: absolute; z-index: 50; left: 50%; bottom: 0; height: var(--MH); aspect-ratio: 3 / 4; transform: translateX(-50%); pointer-events: none; }
+.vf-fig { position: absolute; inset: 0; background: center bottom / 100% 100% no-repeat; }
+.vf-next { clip-path: inset(0 0 100% 0); transform-origin: 50% 60%; }
+.vf-grid {
+  position: absolute; inset: 0; clip-path: inset(0 0 100% 0); mix-blend-mode: screen;
+  background: repeating-linear-gradient(0deg, transparent 0 5px, rgba(255, 255, 255, .22) 5px 6px);
+  -webkit-mask: var(--fig) center bottom / 100% 100% no-repeat; mask: var(--fig) center bottom / 100% 100% no-repeat;
+}
+.vf-scan {
+  position: absolute; left: -14%; right: -14%; top: 0; height: 2px; opacity: 0;
+  background: linear-gradient(90deg, transparent, #fff 18%, #fff 82%, transparent);
+  box-shadow: 0 0 18px 4px rgba(255, 255, 255, .75), 0 0 60px 10px rgba(190, 225, 255, .45);
+}
+.vf-scan::after { content: ''; position: absolute; left: 14%; right: 14%; bottom: 2px; height: calc(var(--MH) * .12); background: linear-gradient(to top, rgba(220, 238, 255, .32), transparent); }
+
+/* Arrows */
+.vf-arrow { position: absolute; z-index: 30; top: 50%; width: 46px; height: 46px; margin-top: -23px; border-radius: 50% !important; display: grid; place-items: center; color: #222 !important; }
+.vf-prev { left: calc(max(18px, 1.8vw) + 76px); }
+.vf-next-btn { right: max(18px, 1.8vw); }
+
+/* The buy card */
+.vf-buy {
+  position: absolute; z-index: 60; left: 50%; bottom: 4.6vh; transform: translateX(-50%); width: min(860px, calc(100vw - 32px));
+  display: flex; align-items: center; gap: 22px; padding: 12px 12px 12px 12px; border-radius: 24px; text-shadow: 0 1px 6px rgba(0, 0, 0, .18);
+}
+.vf-thumb { flex: none; width: 64px; height: 64px; border-radius: 14px; background: rgba(255, 255, 255, .3); overflow: hidden; position: relative; }
+.vf-thumb > div { position: absolute; inset: 6px; background: center / contain no-repeat; }
+.vf-info { display: grid; gap: 2px; min-width: 150px; flex: 1 1 150px; }
+.vf-iname { display: block; min-width: 0; font: 600 16px var(--sans); text-decoration: none; }
+.vf-iname:hover { text-decoration: underline; text-underline-offset: 3px; }
+.vf-iprice { font: 500 14px var(--sans); opacity: .9; }
+.vf-ln { position: relative; display: block; height: 1.15em; line-height: 1.15; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.vf-ln > span { display: block; overflow: hidden; text-overflow: ellipsis; }
+.vf-roll-old { position: absolute; left: 0; top: 0; }
+.vf-opt { display: grid; gap: 6px; }
+.vf-label { font: 500 12px var(--sans); opacity: .85; }
+.vf-label .vf-ln { min-width: 120px; }
+.vf-sizes, .vf-dots { display: flex; gap: 6px; align-items: center; }
+.vf-chip { min-width: 30px; height: 30px; padding: 0 6px !important; border-radius: 99px; background: rgba(255, 255, 255, .22) !important; color: #fff; font: 600 11px var(--sans) !important; transition: transform .25s var(--ease), background .3s; }
+.vf-chip:active { transform: scale(.9); }
+.vf-chip[aria-pressed='true'] { background: #fff !important; color: #111 !important; text-shadow: none; }
+.vf-chip:disabled { opacity: .4; text-decoration: line-through; }
+.vf-dot { width: 18px; height: 18px; border-radius: 50%; transition: box-shadow .3s var(--ease); }
+.vf-dot[aria-pressed='true'] { box-shadow: 0 0 0 2px rgba(255, 255, 255, .95), 0 0 0 4px rgba(0, 0, 0, .12); }
+.vf-add { flex: none; height: 44px; padding: 0 22px !important; border-radius: 99px; background: rgba(255, 255, 255, .92) !important; color: #111 !important; font: 600 13px var(--sans) !important; letter-spacing: .04em; text-shadow: none; box-shadow: 0 6px 18px -8px rgba(0, 0, 0, .35); transition: transform .25s var(--ease); }
+.vf-add:active { transform: scale(.96); }
+.vf-add:disabled { opacity: .5; }
+
+/* The glass cursor */
+.vf-cur { position: absolute; z-index: 100; left: 0; top: 0; width: 58px; height: 58px; pointer-events: none; display: none; }
+@media (pointer: fine) { .vf-cur { display: block; } }
+.vf-cur[data-mode='gone'] { opacity: 0; }
+.vf-ring { position: absolute; inset: 0; border-radius: 50%; border: 1.5px solid rgba(255, 255, 255, .95); background: rgba(255, 255, 255, .14); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); box-shadow: 0 6px 20px -8px rgba(0, 0, 0, .35); transition: transform .5s var(--ease), background .5s var(--ease); }
+.vf-dotc { position: absolute; left: 26px; top: 26px; width: 6px; height: 6px; border-radius: 50%; background: #fff; transition: transform .4s var(--ease), opacity .4s; }
+.vf-cur b { position: absolute; inset: 0; display: grid; place-items: center; font: 700 10px var(--sans); letter-spacing: .12em; opacity: 0; transform: scale(.6); transition: opacity .45s var(--ease), transform .45s var(--ease); }
+.vf-t-try { color: #111; }
+.vf-t-drag { color: #fff; text-shadow: 0 1px 6px rgba(0, 0, 0, .3); }
+.vf-cur[data-mode='try'] .vf-ring { transform: scale(1.5); background: rgba(255, 255, 255, .92); }
+.vf-cur[data-mode='try'] .vf-t-try { opacity: 1; transform: scale(1); }
+.vf-cur[data-mode='try'] .vf-dotc, .vf-cur[data-mode='drag'] .vf-dotc { transform: scale(0); }
+.vf-cur[data-mode='drag'] .vf-ring { transform: scale(1.2); }
+.vf-cur[data-mode='drag'] .vf-t-drag { opacity: 1; transform: scale(1); }
+.vf-cur[data-mode='btn'] .vf-ring { transform: scale(.6); }
+.vf-cur.down .vf-ring { transform: scale(1.05); }
+
+/* Phones */
+@media (max-width: 767px) {
+  .vf { --MH: min(62vh, 128vw); --CW: min(30vw, 170px); }
+  .vf-tabs { max-width: calc(100vw - 24px); overflow-x: auto; scrollbar-width: none; }
+  .vf-tabs > button, .vf-tabs > a { height: 32px; padding: 0 13px; font-size: 12px; }
+  .vf-pill { height: 32px; }
+  .vf-rail { top: auto; left: 10px; bottom: calc(4.6vh + 150px); transform: none; padding: 6px; gap: 6px; }
+  .vf-rail > * { width: 34px; height: 34px; }
+  .vf-rail svg { width: 17px; height: 17px; }
+  .vf-arrow { display: none; }
+  /* The buy card on two lines: piece and button, then sizes and colour. */
+  .vf-buy { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; grid-template-areas: 'thumb info add' 'size size colour'; gap: 10px 12px; padding: 10px 12px; bottom: 2.6vh; }
+  .vf-thumb { grid-area: thumb; width: 48px; height: 48px; border-radius: 12px; }
+  .vf-thumb > div { inset: 4px; }
+  .vf-info { grid-area: info; min-width: 0; }
+  .vf-iname { font-size: 14px; }
+  .vf-iprice { font-size: 13px; }
+  .vf-opt-size { grid-area: size; }
+  .vf-opt-colour { grid-area: colour; justify-self: end; align-self: center; }
+  .vf-opt .vf-label { display: none; }
+  .vf-sizes { gap: 5px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .vf-chip { min-width: 28px; height: 28px; font-size: 10px !important; }
+  .vf-add { grid-area: add; height: 38px; padding: 0 16px !important; font-size: 12px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vf-pill, .vf-ring, .vf-dotc, .vf-cur b { transition: none; }
+}

@@ -147,7 +147,7 @@ export default async function Home() {
           <div className="tiles">
             {[
               { href: '/virtual-store', im: storeImg, title: 'The Virtual Store', line: 'Walk our gallery in 3D and pick anything off the wall.', cta: 'Step inside' },
-              { href: '/trial-room', im: trialImg, title: 'The Trial Room', line: 'See a piece on your own photo. Your photo never leaves your phone.', cta: 'Try it on' },
+              { href: '/trial-room', im: trialImg, title: 'The Trial Room', line: 'Spin the rail and watch each piece scan onto our models. Or try it on your own photo.', cta: 'Try it on' },
             ].map((t, n) => (
               <Reveal key={t.href} delay={n * 150}>
                 <Link href={t.href} className="tile tile-wide">
